@@ -27,9 +27,7 @@ defmodule GitSyncWeb.Layouts do
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
 
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
+  attr :current_operator, :string, default: nil, doc: "the signed-in operator, if any"
 
   slot :inner_block, required: true
 
@@ -37,7 +35,9 @@ defmodule GitSyncWeb.Layouts do
     ~H"""
     <header class="site">
       <a href="/"><strong>git-sync</strong></a>
-      <nav></nav>
+      <nav>
+        <.link :if={@current_operator} href={~p"/logout"} method="delete">Sign out</.link>
+      </nav>
     </header>
 
     <main>

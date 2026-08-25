@@ -1,0 +1,8 @@
+<Layouts.app flash={@flash} current_operator={@current_operator}>
+  <.header>
+    Sign in
+    <:subtitle>git-sync is gated by your Forgejo instance.</:subtitle>
+  </.header>
+
+  <.button id="sign-in" href={~p"/auth/forgejo"} method="post">Sign in with Forgejo</.button>
+</Layouts.app>
