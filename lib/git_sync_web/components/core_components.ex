@@ -24,14 +24,7 @@ defmodule GitSyncWeb.CoreComponents do
   ## Examples
 
       <.flash kind={:info} flash={@flash} />
-      <.flash
-        id="welcome-back"
-        kind={:info}
-        phx-mounted={show("#welcome-back") |> JS.remove_attribute("hidden")}
-        hidden
-      >
-        Welcome Back!
-      </.flash>
+      <.flash id="welcome-back" kind={:info}>Welcome Back!</.flash>
   """
   attr :id, :string, doc: "the optional id of flash container"
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
@@ -307,7 +300,6 @@ defmodule GitSyncWeb.CoreComponents do
   attr :id, :string, required: true
   attr :rows, :list, required: true
   attr :row_id, :any, default: nil, doc: "the function for generating the row id"
-  attr :row_click, :any, default: nil, doc: "the function for handling phx-click on each row"
 
   attr :row_item, :any,
     default: &Function.identity/1,
@@ -320,11 +312,6 @@ defmodule GitSyncWeb.CoreComponents do
   slot :action, doc: "the slot for showing user actions in the last table column"
 
   def table(assigns) do
-    assigns =
-      with %{rows: %Phoenix.LiveView.LiveStream{}} <- assigns do
-        assign(assigns, row_id: assigns.row_id || fn {id, _item} -> id end)
-      end
-
     ~H"""
     <table>
       <thead>
@@ -335,12 +322,9 @@ defmodule GitSyncWeb.CoreComponents do
           </th>
         </tr>
       </thead>
-      <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
+      <tbody id={@id}>
         <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
-          <td
-            :for={col <- @col}
-            phx-click={@row_click && @row_click.(row)}
-          >
+          <td :for={col <- @col}>
             {render_slot(col, @row_item.(row))}
           </td>
           <td :if={@action != []}>
