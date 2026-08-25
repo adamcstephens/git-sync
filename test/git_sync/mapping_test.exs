@@ -40,6 +40,19 @@ defmodule GitSync.MappingTest do
     assert %{interval_seconds: ["must be greater than or equal to 60"]} = errors_on(changeset)
   end
 
+  test "rejects a repository that is not owner/name", context do
+    changeset = Mapping.changeset(%Mapping{}, %{attrs(context) | source_repo: "git-sync"})
+
+    assert %{source_repo: ["must look like owner/name"]} = errors_on(changeset)
+  end
+
+  test "rejects a destination repository that is not owner/name", context do
+    changeset =
+      Mapping.changeset(%Mapping{}, %{attrs(context) | destination_repo: "adam/git sync"})
+
+    assert %{destination_repo: ["must look like owner/name"]} = errors_on(changeset)
+  end
+
   test "allows one source to have several destinations", context do
     {:ok, _} = Repo.insert(Mapping.changeset(%Mapping{}, attrs(context)))
 

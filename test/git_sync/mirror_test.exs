@@ -13,8 +13,8 @@ defmodule GitSync.MirrorTest do
     Application.put_env(:git_sync, :workspace_root, Path.join(root, "workspaces"))
     on_exit(fn -> File.rm_rf!(root) end)
 
-    source = bare_repo(forge, "source.git")
-    destination = bare_repo(forge, "destination.git")
+    source = bare_repo(forge, "adam/source.git")
+    destination = bare_repo(forge, "adam/destination.git")
     commit(source, "README.md", "hello")
 
     %{forge: forge, source: source, destination: destination}
@@ -73,7 +73,7 @@ defmodule GitSync.MirrorTest do
     end
 
     test "records the git output when the source is unreachable", %{forge: forge} do
-      mapping = mapping(forge, source_repo: "missing.git")
+      mapping = mapping(forge, source_repo: "adam/missing.git")
 
       {:error, run} = Mirror.sync(mapping)
 
@@ -148,9 +148,9 @@ defmodule GitSync.MirrorTest do
     attrs =
       Enum.into(overrides, %{
         source_connection_id: source.id,
-        source_repo: "source.git",
+        source_repo: "adam/source.git",
         destination_connection_id: destination.id,
-        destination_repo: "destination.git"
+        destination_repo: "adam/destination.git"
       })
 
     %Mapping{}
@@ -163,7 +163,7 @@ defmodule GitSync.MirrorTest do
     Repo.insert!(%Connection{kind: kind, base_url: "file://" <> forge})
   end
 
-  defp mapping_destination(forge), do: Path.join(forge, "destination.git")
+  defp mapping_destination(forge), do: Path.join(forge, "adam/destination.git")
 
   defp bare_repo(forge, name) do
     path = Path.join(forge, name)

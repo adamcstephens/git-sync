@@ -81,6 +81,25 @@ defmodule GitSyncWeb.MappingControllerTest do
       assert response(conn, 200) =~ ~s(<option value="adam/git-sync")
     end
 
+    test "lets the repositories be searched by typing", %{conn: conn, forgejo: forgejo} do
+      Req.Test.stub(GitSync.Http, fn req_conn ->
+        Req.Test.json(req_conn, [
+          %{
+            "full_name" => "adam/git-sync",
+            "clone_url" => "https://forge.test/adam/git-sync.git",
+            "private" => false
+          }
+        ])
+      end)
+
+      body = response(get(conn, ~p"/mappings/repos?datastar=#{signals(forgejo)}"), 200)
+
+      assert body =~ ~s(<input type="text" name="mapping[source_repo]")
+      assert body =~ ~s(list="mapping_source_repo-options")
+      assert body =~ ~s(<datalist id="mapping_source_repo-options">)
+      refute body =~ ~s(<select id="mapping_source_repo")
+    end
+
     test "falls back to a typed name when the forge cannot be listed", %{
       conn: conn,
       forgejo: forgejo

@@ -134,7 +134,7 @@ defmodule GitSyncWeb.CoreComponents do
 
   attr :type, :string,
     default: "text",
-    values: ~w(checkbox color date datetime-local email file month number password
+    values: ~w(checkbox color date datalist datetime-local email file month number password
                search select tel text textarea time url week hidden)
 
   attr :field, Phoenix.HTML.FormField,
@@ -217,6 +217,32 @@ defmodule GitSyncWeb.CoreComponents do
           {Phoenix.HTML.Form.options_for_select(@options, @value)}
         </select>
       </label>
+      <.error :for={msg <- @errors}>{msg}</.error>
+    </div>
+    """
+  end
+
+  def input(%{type: "datalist"} = assigns) do
+    assigns = assign(assigns, :list_id, "#{assigns.id}-options")
+
+    ~H"""
+    <div class="field">
+      <label for={@id}>
+        <span :if={@label}>{@label}</span>
+        <input
+          type="text"
+          name={@name}
+          id={@id}
+          value={Phoenix.HTML.Form.normalize_value("text", @value)}
+          list={@list_id}
+          class={[@class, @errors != [] && @error_class]}
+          aria-invalid={@errors != []}
+          {@rest}
+        />
+      </label>
+      <datalist id={@list_id}>
+        <option :for={option <- @options} value={option}></option>
+      </datalist>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """

@@ -139,9 +139,9 @@ defmodule GitSync.SyncTest do
     attrs =
       Enum.into(overrides, %{
         source_connection_id: connections.source.id,
-        source_repo: "source.git",
+        source_repo: "adam/source.git",
         destination_connection_id: connections.destination.id,
-        destination_repo: "destination-#{System.unique_integer([:positive])}.git"
+        destination_repo: "adam/destination-#{System.unique_integer([:positive])}.git"
       })
 
     %Mapping{}

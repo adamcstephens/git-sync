@@ -11,6 +11,9 @@ defmodule GitSync.Mapping do
   alias GitSync.Connection
   alias GitSync.Run
 
+  @repo_format ~r{\A[^\s/]+/[^\s/]+\z}
+  @repo_message "must look like owner/name"
+
   schema "mappings" do
     field :source_repo, :string
     field :destination_repo, :string
@@ -42,6 +45,8 @@ defmodule GitSync.Mapping do
       :destination_connection_id,
       :destination_repo
     ])
+    |> validate_format(:source_repo, @repo_format, message: @repo_message)
+    |> validate_format(:destination_repo, @repo_format, message: @repo_message)
     |> validate_number(:interval_seconds, greater_than_or_equal_to: 60)
     |> assoc_constraint(:source_connection)
     |> assoc_constraint(:destination_connection)

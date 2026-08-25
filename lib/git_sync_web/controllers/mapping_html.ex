@@ -8,7 +8,8 @@ defmodule GitSyncWeb.MappingHTML do
 
   @doc """
   A repository picker for one end of a mapping. A forge that can be listed
-  gives a select; anything else falls back to a typed `owner/name`.
+  gives a searchable list of its repositories; anything else falls back to a
+  typed `owner/name`.
   """
   attr :id, :string, required: true
   attr :field, Phoenix.HTML.FormField, required: true
@@ -29,10 +30,13 @@ defmodule GitSyncWeb.MappingHTML do
     ~H"""
     <.input
       field={@field}
-      type="select"
+      type="datalist"
       label={@label}
       options={@options}
-      prompt="Choose a repository"
+      placeholder="Type to search"
+      autocomplete="off"
+      data-1p-ignore
+      data-lpignore="true"
     />
     """
   end
