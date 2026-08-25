@@ -3,47 +3,37 @@ defmodule GitSyncWeb.SessionController do
 
   alias GitSync.Connections
   alias GitSync.Forgejo.Oidc
+  alias GitSync.Forgejo.Provider
+
+  @client [
+    provider: Provider.name(),
+    client_id: &Oidc.client_id/0,
+    client_secret: &Oidc.client_secret/0,
+    redirect_uri: &__MODULE__.callback_url/0
+  ]
+
+  plug Oidcc.Plug.Authorize,
+       @client ++
+         [scopes: Oidc.scopes(), redirect_mode: :manual, require_pkce: true]
+       when action == :create
+
+  plug Oidcc.Plug.AuthorizationCallback, @client when action == :callback
 
   def new(conn, _params) do
     render(conn, :new)
   end
 
   def create(conn, _params) do
-    state = random()
-    nonce = random()
-
-    case Oidc.authorization_url(callback_url(conn), state, nonce) do
-      {:ok, url} ->
-        conn
-        |> put_session(:oidc_state, state)
-        |> put_session(:oidc_nonce, nonce)
-        |> redirect(external: url)
-
-      other ->
-        failed(conn, other)
-    end
+    redirect(conn, external: Map.fetch!(conn.private, Oidcc.Plug.Authorize))
   end
 
-  def callback(conn, %{"code" => code, "state" => state}) do
-    nonce = get_session(conn, :oidc_nonce)
+  def callback(
+        %Plug.Conn{private: %{Oidcc.Plug.AuthorizationCallback => {:ok, {token, claims}}}} = conn,
+        _params
+      ) do
+    operator = Oidc.operator(claims)
 
-    if Plug.Crypto.secure_compare(state, get_session(conn, :oidc_state) || "") do
-      finish(conn, Oidc.exchange(code, callback_url(conn), nonce))
-    else
-      failed(conn, :state_mismatch)
-    end
-  end
-
-  def callback(conn, _params), do: failed(conn, :no_code)
-
-  def delete(conn, _params) do
-    conn
-    |> put_flash(:info, "Signed out.")
-    |> GitSyncWeb.Auth.log_out()
-  end
-
-  defp finish(conn, {:ok, connection, operator, token}) do
-    case Connections.record_login(connection, operator, token) do
+    case Connections.record_login(Connections.forgejo(), operator, token.access.token) do
       {:ok, _connection} ->
         conn
         |> put_flash(:info, "Signed in as #{operator}.")
@@ -59,15 +49,27 @@ defmodule GitSyncWeb.SessionController do
     end
   end
 
-  defp finish(conn, other), do: failed(conn, other)
+  def callback(
+        %Plug.Conn{private: %{Oidcc.Plug.AuthorizationCallback => {:error, reason}}} = conn,
+        _params
+      ) do
+    failed(conn, reason)
+  end
+
+  def delete(conn, _params) do
+    conn
+    |> put_flash(:info, "Signed out.")
+    |> GitSyncWeb.Auth.log_out()
+  end
+
+  @doc """
+  The redirect URI registered with Forgejo, as an absolute URL.
+  """
+  def callback_url, do: url(~p"/auth/forgejo/callback")
 
   defp failed(conn, reason) do
     conn
     |> put_flash(:error, "Forgejo sign-in failed: #{inspect(reason)}")
     |> redirect(to: ~p"/login")
   end
-
-  defp callback_url(conn), do: url(conn, ~p"/auth/forgejo/callback")
-
-  defp random, do: 32 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
 end

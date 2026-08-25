@@ -56,6 +56,7 @@ defmodule GitSync.MixProject do
       {:bandit, "~> 1.5"},
       {:cloak_ecto, "~> 1.3.0"},
       {:oidcc, "~> 3.8"},
+      {:oidcc_plug, "~> 0.5.1"},
       {:req, "~> 0.8.0-rc.0"}
     ]
   end

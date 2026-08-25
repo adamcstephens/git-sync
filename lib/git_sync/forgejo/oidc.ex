@@ -1,55 +1,19 @@
 defmodule GitSync.Forgejo.Oidc do
   @moduledoc """
-  The authorization code flow against the configured Forgejo instance.
+  The pieces of the login flow that `oidcc_plug` cannot supply itself: the
+  client credentials, which only exist once the wizard has run, and the claim
+  that names the operator.
   """
 
   alias GitSync.Connections
-  alias GitSync.Forgejo.Provider
 
   @scopes ["openid", "profile", "email"]
 
-  @doc """
-  Builds the URL the browser is sent to in order to start a login.
-  """
-  def authorization_url(redirect_uri, state, nonce) do
-    connection = Connections.forgejo()
+  def scopes, do: @scopes
 
-    Oidcc.create_redirect_url(Provider.name(), connection.client_id, connection.client_secret, %{
-      redirect_uri: redirect_uri,
-      scopes: @scopes,
-      state: state,
-      nonce: nonce
-    })
-  end
+  def client_id, do: Connections.forgejo().client_id
 
-  @doc """
-  Exchanges an authorization code for the operator's identity and access token.
-  """
-  def exchange(code, redirect_uri, nonce) do
-    connection = Connections.forgejo()
+  def client_secret, do: Connections.forgejo().client_secret
 
-    with {:ok, token} <-
-           Oidcc.retrieve_token(
-             code,
-             Provider.name(),
-             connection.client_id,
-             connection.client_secret,
-             %{
-               redirect_uri: redirect_uri,
-               nonce: nonce
-             }
-           ),
-         {:ok, claims} <-
-           Oidcc.retrieve_userinfo(
-             token,
-             Provider.name(),
-             connection.client_id,
-             connection.client_secret,
-             %{}
-           ) do
-      {:ok, connection, operator(claims), token.access.token}
-    end
-  end
-
-  defp operator(claims), do: claims["preferred_username"] || claims["sub"]
+  def operator(claims), do: claims["preferred_username"] || claims["sub"]
 end
