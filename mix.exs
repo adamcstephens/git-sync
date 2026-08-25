@@ -21,9 +21,13 @@ defmodule GitSync.MixProject do
   def application do
     [
       mod: {GitSync.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools] ++ extra_applications(Mix.env())
     ]
   end
+
+  # The test suite stands up an SSH server to scan the host keys of.
+  defp extra_applications(:test), do: [:ssh]
+  defp extra_applications(_env), do: []
 
   def cli do
     [

@@ -17,6 +17,7 @@ defmodule GitSync.Connection do
     field :token_expires_at, :utc_datetime
     field :subject, :string
     field :ssh_key, GitSync.Encrypted.Binary, redact: true
+    field :public_key, :string
     field :host_key, :string
     field :client_id, :string
     field :client_secret, GitSync.Encrypted.Binary, redact: true
@@ -29,21 +30,10 @@ defmodule GitSync.Connection do
 
   def changeset(connection, attrs) do
     connection
-    |> cast(attrs, [:kind, :base_url, :token, :ssh_key, :host_key])
+    |> cast(attrs, [:kind, :base_url, :token])
     |> validate_required([:kind, :base_url])
     |> validate_change(:base_url, &validate_url/2)
     |> unique_constraint(:kind)
-  end
-
-  @doc """
-  Changeset for a knot, whose credential is an SSH keypair the operator pastes
-  in. The private key is never rendered back, so both secrets are re-entered on
-  every save.
-  """
-  def ssh_changeset(connection, attrs) do
-    connection
-    |> changeset(attrs)
-    |> validate_required([:ssh_key, :host_key])
   end
 
   @doc """

@@ -8,6 +8,7 @@ defmodule GitSync.Connections do
   alias GitSync.Connection
   alias GitSync.Forge.Token
   alias GitSync.Repo
+  alias GitSync.Ssh
 
   def list, do: Repo.all(from c in Connection, order_by: [asc: c.id])
 
@@ -64,14 +65,51 @@ defmodule GitSync.Connections do
   end
 
   @doc """
-  Saves the knot's base URL and the keypair used to push to it.
+  Saves the knot's URL, scanning it for the host keys git-sync should pin. The
+  keypair is left alone; see `generate_tangled_key/1`.
   """
   def configure_tangled(attrs) do
     changeset =
       (tangled() || %Connection{})
-      |> Connection.ssh_changeset(Map.put(attrs, "kind", :tangled))
+      |> Connection.changeset(Map.put(attrs, "kind", :tangled))
 
-    Repo.insert_or_update(changeset)
+    with %Ecto.Changeset{valid?: true} <- changeset,
+         {:ok, host_key} <- scan(changeset) do
+      changeset
+      |> Ecto.Changeset.put_change(:host_key, host_key)
+      |> Repo.insert_or_update()
+    else
+      %Ecto.Changeset{} -> {:error, Map.put(changeset, :action, :insert)}
+      {:error, reason} -> {:error, base_url_error(changeset, reason)}
+    end
+  end
+
+  @doc """
+  Replaces the knot's keypair. The public half is the operator's to hand to the
+  knot; the private half they never see.
+  """
+  def generate_tangled_key(%Connection{} = connection) do
+    case Ssh.generate_key() do
+      {:ok, %{private: private, public: public}} ->
+        connection
+        |> Ecto.Changeset.change(ssh_key: private, public_key: public)
+        |> Repo.update()
+
+      {:error, output} ->
+        {:error, output}
+    end
+  end
+
+  defp scan(changeset) do
+    %URI{host: host} = URI.parse(Ecto.Changeset.get_field(changeset, :base_url))
+
+    Ssh.scan_host(host)
+  end
+
+  defp base_url_error(changeset, reason) do
+    changeset
+    |> Ecto.Changeset.add_error(:base_url, reason)
+    |> Map.put(:action, :insert)
   end
 
   @doc """

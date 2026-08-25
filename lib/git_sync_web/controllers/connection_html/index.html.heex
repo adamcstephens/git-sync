@@ -46,11 +46,21 @@
     <% end %>
   <% end %>
 
+  <%= case @github_repos do %>
+    <% {:ok, repos} -> %>
+      <ul id="github-repos">
+        <li :for={repo <- repos}>{repo.full_name}</li>
+      </ul>
+    <% {:error, reason} -> %>
+      <p id="github-error">Could not list GitHub repositories: {reason}</p>
+    <% nil -> %>
+  <% end %>
+
   <.header>
     Tangled
     <:subtitle>
-      A knot speaks plain git. Paste the SSH key git-sync should push with and the
-      knot's host key line, as it appears in <code>known_hosts</code>.
+      A knot speaks plain git. git-sync scans the knot for its host keys and
+      generates the key it pushes with.
     </:subtitle>
   </.header>
 
@@ -60,24 +70,29 @@
       label="Knot URL"
       placeholder="https://knot.example.com"
     />
-    <.input field={@tangled_form[:ssh_key]} type="textarea" label="Private key" />
-    <.input
-      field={@tangled_form[:host_key]}
-      type="textarea"
-      label="Host key"
-      placeholder="knot.example.com ssh-ed25519 AAAA..."
-    />
 
     <.button id="save-tangled" type="submit">Save knot</.button>
   </.form>
 
-  <%= case @github_repos do %>
-    <% {:ok, repos} -> %>
-      <ul id="github-repos">
-        <li :for={repo <- repos}>{repo.full_name}</li>
-      </ul>
-    <% {:error, reason} -> %>
-      <p id="github-error">Could not list GitHub repositories: {reason}</p>
-    <% nil -> %>
+  <%= if @tangled do %>
+    <.list>
+      <:item title="Host keys">
+        <p :for={fingerprint <- @tangled_fingerprints}>{fingerprint}</p>
+        <p>Check these against the fingerprints the knot's operator publishes.</p>
+      </:item>
+    </.list>
+
+    <%= if @tangled.public_key do %>
+      <.header>
+        Public key
+        <:subtitle>Add this to the knot so git-sync may push to it.</:subtitle>
+      </.header>
+
+      <pre id="tangled-public-key" phx-no-curly-interpolation><%= @tangled.public_key %></pre>
+    <% end %>
+
+    <.button id="generate-tangled-key" href={~p"/connections/tangled/key"} method="post">
+      {if @tangled.public_key, do: "Replace key", else: "Generate key"}
+    </.button>
   <% end %>
 </Layouts.app>

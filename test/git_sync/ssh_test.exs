@@ -2,6 +2,7 @@ defmodule GitSync.SshTest do
   use ExUnit.Case, async: true
 
   alias GitSync.Connection
+  alias GitSync.Knot
   alias GitSync.Ssh
 
   setup do
@@ -90,6 +91,53 @@ defmodule GitSync.SshTest do
     end
   end
 
+  describe "generate_key/0" do
+    test "returns a private key and the public key that matches it" do
+      assert {:ok, %{private: private, public: public}} = Ssh.generate_key()
+
+      assert private =~ "BEGIN OPENSSH PRIVATE KEY"
+      assert String.starts_with?(public, "ssh-ed25519 ")
+
+      assert derive_public(private) == public
+    end
+  end
+
+  describe "scan_host/2" do
+    test "returns the keys the host offers" do
+      %{port: port, public: public} = Knot.serve()
+
+      assert {:ok, scanned} = Ssh.scan_host("127.0.0.1", port)
+
+      assert scanned =~ "[127.0.0.1]:#{port} ssh-ed25519 "
+      assert Ssh.fingerprints(scanned) == [Knot.fingerprint(public)]
+    end
+
+    test "reports a host that offers nothing" do
+      assert {:error, reason} = Ssh.scan_host("127.0.0.1", Knot.refuse())
+
+      assert reason =~ "no host keys"
+    end
+  end
+
+  describe "fingerprints/1" do
+    test "summarises every key in a known_hosts blob" do
+      first = Knot.serve()
+      second = Knot.serve()
+
+      {:ok, scanned} = Ssh.scan_host("127.0.0.1", first.port)
+      {:ok, more} = Ssh.scan_host("127.0.0.1", second.port)
+
+      assert Ssh.fingerprints(scanned <> more) ==
+               [Knot.fingerprint(first.public), Knot.fingerprint(second.public)]
+    end
+
+    test "has nothing to say about a blank or unreadable host key" do
+      assert Ssh.fingerprints(nil) == []
+      assert Ssh.fingerprints("") == []
+      assert Ssh.fingerprints("knot.example.com ssh-ed25519 AAAAnonsense") == []
+    end
+  end
+
   defp ssh_add_list(env) do
     case System.cmd("ssh-add", ["-l"], env: env, stderr_to_stdout: true) do
       {output, 0} -> {:ok, output}
@@ -121,5 +169,22 @@ defmodule GitSync.SshTest do
   defp fingerprint(pub) do
     {output, 0} = System.cmd("ssh-keygen", ["-lf", pub])
     output |> String.split(" ") |> Enum.at(1)
+  end
+
+  defp derive_public(private) do
+    path = Path.join(scratch(), "id")
+    File.write!(path, private)
+    File.chmod!(path, 0o600)
+
+    {public, 0} = System.cmd("ssh-keygen", ["-y", "-f", path])
+    public
+  end
+
+  defp scratch do
+    dir = Path.join(System.tmp_dir!(), "git-sync-test-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    dir
   end
 end

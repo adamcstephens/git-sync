@@ -1,7 +1,9 @@
 defmodule GitSyncWeb.ConnectionControllerTest do
   use GitSyncWeb.ConnCase
 
+  alias GitSync.Connections
   alias GitSync.Forge.Token
+  alias GitSync.Knot
 
   setup :configure_forgejo
 
@@ -35,35 +37,59 @@ defmodule GitSyncWeb.ConnectionControllerTest do
     assert html_response(get(conn, ~p"/connections"), 200) =~ "Could not list repositories"
   end
 
-  test "offers a form to configure a Tangled knot", %{conn: conn} do
-    Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 401, ""))
+  describe "tangled" do
+    setup %{conn: conn} do
+      Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 401, ""))
 
-    html = html_response(get(conn, ~p"/connections"), 200)
+      %{conn: conn, knot: Knot.serve()}
+    end
 
-    assert html =~ "tangled-form"
-    refute html =~ "Could not list Tangled repositories"
+    test "offers a form for the knot URL and nothing to paste", %{conn: conn} do
+      html = html_response(get(conn, ~p"/connections"), 200)
+
+      assert html =~ "tangled-form"
+      refute html =~ "connection[ssh_key]"
+      refute html =~ "connection[host_key]"
+    end
+
+    test "saving a knot scans it and shows the fingerprints", %{conn: conn, knot: knot} do
+      saved = post(conn, ~p"/connections/tangled", %{"connection" => knot_params()})
+
+      assert redirected_to(saved) == ~p"/connections"
+      assert Connections.tangled().base_url == "https://127.0.0.1"
+
+      assert html_response(get(conn, ~p"/connections"), 200) =~ Knot.fingerprint(knot.public)
+    end
+
+    test "a knot that cannot be reached re-renders the page", %{conn: conn} do
+      Knot.refuse()
+
+      conn = post(conn, ~p"/connections/tangled", %{"connection" => knot_params()})
+
+      assert html_response(conn, 200) =~ "no host keys came back"
+      refute Connections.tangled()
+    end
+
+    test "generating a key shows the public half to copy", %{conn: conn} do
+      post(conn, ~p"/connections/tangled", %{"connection" => knot_params()})
+
+      generated = post(conn, ~p"/connections/tangled/key")
+
+      assert redirected_to(generated) == ~p"/connections"
+
+      html = html_response(get(conn, ~p"/connections"), 200)
+
+      assert html =~ Connections.tangled().public_key
+      refute html =~ "BEGIN OPENSSH PRIVATE KEY"
+    end
+
+    test "there is nothing to generate a key for until a knot is saved", %{conn: conn} do
+      conn = post(conn, ~p"/connections/tangled/key")
+
+      assert redirected_to(conn) == ~p"/connections"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "No knot"
+    end
   end
 
-  test "saving a knot stores the connection", %{conn: conn} do
-    conn =
-      post(conn, ~p"/connections/tangled", %{
-        "connection" => %{
-          "base_url" => "https://knot.example.com",
-          "ssh_key" => "-----BEGIN OPENSSH PRIVATE KEY-----",
-          "host_key" => "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
-        }
-      })
-
-    assert redirected_to(conn) == ~p"/connections"
-    assert GitSync.Connections.tangled().base_url == "https://knot.example.com"
-  end
-
-  test "re-renders the page when the knot details are incomplete", %{conn: conn} do
-    Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 401, ""))
-
-    conn = post(conn, ~p"/connections/tangled", %{"connection" => %{"base_url" => ""}})
-
-    assert html_response(conn, 200) =~ "can&#39;t be blank"
-    refute GitSync.Connections.tangled()
-  end
+  defp knot_params, do: %{"base_url" => "https://127.0.0.1"}
 end

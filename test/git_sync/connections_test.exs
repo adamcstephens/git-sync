@@ -3,6 +3,8 @@ defmodule GitSync.ConnectionsTest do
 
   alias GitSync.Connections
   alias GitSync.Forge.Token
+  alias GitSync.Knot
+  alias GitSync.Ssh
 
   @attrs %{
     "base_url" => "https://codeberg.org",
@@ -62,36 +64,81 @@ defmodule GitSync.ConnectionsTest do
     assert connection.token_expires_at == nil
   end
 
-  @tangled %{
-    "base_url" => "https://knot.example.com",
-    "ssh_key" => "-----BEGIN OPENSSH PRIVATE KEY-----",
-    "host_key" => "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
-  }
+  describe "tangled" do
+    setup do
+      %{public: public} = Knot.serve()
 
-  test "configuring tangled stores the keypair and the host key" do
-    refute Connections.tangled()
+      %{host_public: public}
+    end
 
-    assert {:ok, connection} = Connections.configure_tangled(@tangled)
+    test "configuring a knot scans the host for its keys" do
+      refute Connections.tangled()
 
-    assert connection.kind == :tangled
-    assert connection.ssh_key == @tangled["ssh_key"]
-    assert connection.host_key == @tangled["host_key"]
-    assert Connections.tangled().id == connection.id
-  end
+      assert {:ok, connection} =
+               Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
 
-  test "configuring tangled twice updates the single row" do
-    {:ok, first} = Connections.configure_tangled(@tangled)
-    {:ok, second} = Connections.configure_tangled(%{@tangled | "host_key" => "other key"})
+      assert connection.kind == :tangled
+      assert connection.host_key =~ "ssh-ed25519 "
+      assert Connections.tangled().id == connection.id
+    end
 
-    assert first.id == second.id
-    assert second.host_key == "other key"
-  end
+    test "the scanned keys are the ones the host actually offers", %{host_public: public} do
+      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
 
-  test "tangled requires the private key and the host key" do
-    assert {:error, changeset} =
-             Connections.configure_tangled(%{"base_url" => "https://knot.example.com"})
+      assert Ssh.fingerprints(connection.host_key) == [Knot.fingerprint(public)]
+    end
 
-    assert %{ssh_key: ["can't be blank"], host_key: ["can't be blank"]} = errors_on(changeset)
+    test "configuring twice rescans and updates the single row" do
+      {:ok, first} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      {:ok, second} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1/"})
+
+      assert first.id == second.id
+      assert second.base_url == "https://127.0.0.1/"
+    end
+
+    test "a host that cannot be scanned is an error on the URL" do
+      Knot.refuse()
+
+      assert {:error, changeset} =
+               Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+
+      assert %{base_url: ["no host keys came back" <> _]} = errors_on(changeset)
+      refute Connections.tangled()
+    end
+
+    test "a base_url that is not a URL never reaches the network" do
+      assert {:error, changeset} = Connections.configure_tangled(%{"base_url" => "not a url"})
+
+      assert %{base_url: ["must be an http or https URL"]} = errors_on(changeset)
+    end
+
+    test "generating a key stores the private half and exposes the public half" do
+      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+
+      assert {:ok, connection} = Connections.generate_tangled_key(connection)
+
+      assert connection.ssh_key =~ "BEGIN OPENSSH PRIVATE KEY"
+      assert String.starts_with?(connection.public_key, "ssh-ed25519 ")
+    end
+
+    test "generating a key again replaces the old one" do
+      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      {:ok, first} = Connections.generate_tangled_key(connection)
+      {:ok, second} = Connections.generate_tangled_key(first)
+
+      refute second.public_key == first.public_key
+      refute second.ssh_key == first.ssh_key
+    end
+
+    test "rescanning a knot leaves its key alone" do
+      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      {:ok, connection} = Connections.generate_tangled_key(connection)
+
+      {:ok, rescanned} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+
+      assert rescanned.ssh_key == connection.ssh_key
+      assert rescanned.public_key == connection.public_key
+    end
   end
 
   defp token(access), do: Token.new(access, nil, nil)

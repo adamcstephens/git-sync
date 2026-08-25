@@ -13,6 +13,8 @@ defmodule GitSync.Ssh do
 
   @add ~s(printf '%s' "$GIT_SYNC_SSH_KEY" | ssh-add -)
 
+  @timeout "5"
+
   @options [
     "-F /dev/null",
     "-o StrictHostKeyChecking=yes",
@@ -59,6 +61,73 @@ defmodule GitSync.Ssh do
 
   def with_agent(%Connection{}, fun), do: fun.([])
 
+  @doc """
+  Generates the keypair git-sync pushes with. The operator never sees the
+  private half; the public half is theirs to add to the knot.
+  """
+  def generate_key do
+    dir = private_dir()
+    path = Path.join(dir, "id_ed25519")
+
+    try do
+      case System.cmd("ssh-keygen", ~w(-q -t ed25519 -N) ++ ["", "-C", "git-sync", "-f", path],
+             stderr_to_stdout: true
+           ) do
+        {_output, 0} -> {:ok, %{private: File.read!(path), public: File.read!(path <> ".pub")}}
+        {output, _} -> {:error, scrub_dir(output, dir)}
+      end
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
+  @doc """
+  Asks a host which keys it identifies itself by, in `known_hosts` form.
+
+  This is trust on first use: whatever answers on the wire is what gets
+  believed. Show `fingerprints/1` of the result to whoever is setting the
+  connection up so they can check it against what the host's operator
+  publishes.
+  """
+  def scan_host(host, port \\ default_port()) do
+    {output, _status} =
+      System.cmd("ssh-keyscan", ["-T", @timeout, "-p", "#{port}", host], stderr_to_stdout: true)
+
+    case keys(output) do
+      [] -> {:error, "no host keys came back from #{host}"}
+      keys -> {:ok, Enum.join(keys, "\n") <> "\n"}
+    end
+  end
+
+  @doc """
+  The fingerprints of every key in a `known_hosts` blob, for an operator to
+  compare against the host they meant to reach. Anything unreadable fingerprints
+  as nothing.
+  """
+  def fingerprints(blob) when blob in [nil, ""], do: []
+
+  def fingerprints(blob) do
+    dir = private_dir()
+    path = Path.join(dir, "known_hosts")
+
+    try do
+      write(path, blob)
+
+      case System.cmd("ssh-keygen", ["-lf", path], stderr_to_stdout: true) do
+        {output, 0} -> Enum.map(lines(output), &Enum.at(String.split(&1, " "), 1))
+        {_output, _} -> []
+      end
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
+  defp default_port, do: Application.get_env(:git_sync, :knot_ssh_port, 22)
+
+  defp keys(output), do: Enum.reject(lines(output), &String.starts_with?(&1, "#"))
+
+  defp lines(output), do: output |> String.split("\n", trim: true) |> Enum.map(&String.trim/1)
+
   defp env(socket, known_hosts) do
     command = Enum.join(["ssh" | @options] ++ ["-o UserKnownHostsFile=#{known_hosts}"], " ")
 
@@ -104,5 +173,7 @@ defmodule GitSync.Ssh do
     File.chmod!(path, 0o600)
   end
 
-  defp scrub({status, output}, dir), do: {status, String.replace(output, dir, "<ssh>")}
+  defp scrub({status, output}, dir), do: {status, scrub_dir(output, dir)}
+
+  defp scrub_dir(output, dir), do: String.replace(output, dir, "<ssh>")
 end

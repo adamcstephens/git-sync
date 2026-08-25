@@ -6,6 +6,7 @@ defmodule GitSyncWeb.ConnectionController do
   alias GitSync.Connection
   alias GitSync.Connections
   alias GitSync.Forge
+  alias GitSync.Ssh
 
   def index(conn, _params), do: render_index(conn)
 
@@ -28,6 +29,7 @@ defmodule GitSyncWeb.ConnectionController do
           github_repos: github_repos(github),
           github_form: form(Connection.oauth_changeset(%Connection{}, %{})),
           tangled: tangled,
+          tangled_fingerprints: fingerprints(tangled),
           tangled_form: form(Connection.changeset(tangled || %Connection{}, %{}))
         ],
         overrides
@@ -39,6 +41,9 @@ defmodule GitSyncWeb.ConnectionController do
   end
 
   def form(changeset), do: to_form(changeset)
+
+  defp fingerprints(%Connection{host_key: host_key}), do: Ssh.fingerprints(host_key)
+  defp fingerprints(nil), do: []
 
   defp github_repos(%Connection{token: token} = github) when is_binary(token),
     do: Forge.list_repos(github)
