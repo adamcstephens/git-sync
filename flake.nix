@@ -31,7 +31,7 @@
           );
         in
         {
-          packages.default = pkgs.callPackage ./nix/package.nix { };
+          packages.default = pkgs.callPackage ./nix/package.nix { inherit beamPackages; };
 
           checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
             module = pkgs.testers.runNixOSTest (

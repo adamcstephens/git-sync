@@ -1,20 +1,13 @@
 {
   bash,
   lib,
-  beamMinimal29Packages,
+  beamPackages,
   esbuild,
   git,
   makeWrapper,
   openssh,
 }:
 
-let
-  beamPackages = beamMinimal29Packages.overrideScope (
-    _: prev: {
-      elixir = prev.elixir_1_20;
-    }
-  );
-in
 beamPackages.mixRelease rec {
   pname = "git-sync";
   version = "0.1.0";
