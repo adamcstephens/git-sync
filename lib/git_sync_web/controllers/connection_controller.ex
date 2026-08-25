@@ -5,8 +5,7 @@ defmodule GitSyncWeb.ConnectionController do
 
   alias GitSync.Connection
   alias GitSync.Connections
-  alias GitSync.Forgejo
-  alias GitSync.Github
+  alias GitSync.Forge
 
   def index(conn, _params) do
     render_index(conn, github_form(Connection.oauth_changeset(%Connection{}, %{})))
@@ -24,7 +23,7 @@ defmodule GitSyncWeb.ConnectionController do
     |> put_view(html: GitSyncWeb.ConnectionHTML)
     |> render(:index,
       connection: forgejo,
-      repos: Forgejo.Client.list_repos(forgejo),
+      repos: Forge.list_repos(forgejo),
       github: github,
       github_repos: github_repos(github),
       github_form: github_form
@@ -34,7 +33,7 @@ defmodule GitSyncWeb.ConnectionController do
   def github_form(changeset), do: to_form(changeset)
 
   defp github_repos(%Connection{token: token} = github) when is_binary(token),
-    do: Github.Client.list_repos(github)
+    do: Forge.list_repos(github)
 
   defp github_repos(_github), do: nil
 end

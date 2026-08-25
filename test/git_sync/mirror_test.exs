@@ -111,15 +111,6 @@ defmodule GitSync.MirrorTest do
     end
   end
 
-  describe "remote_url/2" do
-    test "joins the repository onto the forge base url" do
-      connection = %Connection{kind: :github, base_url: "https://github.com/"}
-
-      assert Mirror.remote_url(connection, "adam/git-sync") ==
-               "https://github.com/adam/git-sync"
-    end
-  end
-
   defp mapping(forge, overrides \\ []) do
     source = connection(:forgejo, forge)
     destination = connection(:github, forge)

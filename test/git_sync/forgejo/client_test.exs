@@ -30,4 +30,80 @@ defmodule GitSync.Forgejo.ClientTest do
 
     assert {:error, "Forgejo returned HTTP 401"} = Client.list_repos(@connection)
   end
+
+  describe "clone_url/3" do
+    test "joins the repository onto the instance base url" do
+      assert Client.clone_url(@connection, "adam/git-sync", :read) ==
+               "https://codeberg.org/adam/git-sync"
+    end
+  end
+
+  describe "create_webhook/4" do
+    test "registers a push webhook on the repository" do
+      stub(fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/api/v1/repos/adam/git-sync/hooks"
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+        assert %{
+                 "type" => "forgejo",
+                 "events" => ["push"],
+                 "config" => %{"url" => "https://sync.example/hooks/1", "secret" => "shh"}
+               } = JSON.decode!(body)
+
+        conn |> Plug.Conn.put_status(201) |> Req.Test.json(%{"id" => 7})
+      end)
+
+      assert {:ok, 7} =
+               Client.create_webhook(
+                 @connection,
+                 "adam/git-sync",
+                 "https://sync.example/hooks/1",
+                 "shh"
+               )
+    end
+
+    test "reports a rejected registration" do
+      stub(fn conn -> Plug.Conn.send_resp(conn, 403, "") end)
+
+      assert {:error, "Forgejo returned HTTP 403"} =
+               Client.create_webhook(
+                 @connection,
+                 "adam/git-sync",
+                 "https://sync.example/hooks/1",
+                 "shh"
+               )
+    end
+  end
+
+  describe "verify_webhook/4" do
+    test "accepts a body matching the signature header" do
+      body = ~s({"ref":"refs/heads/main"})
+      headers = [{"x-forgejo-signature", signature(body, "shh")}]
+
+      assert :ok = Client.verify_webhook(@connection, headers, body, "shh")
+    end
+
+    test "accepts the gitea-compatible header" do
+      body = ~s({"ref":"refs/heads/main"})
+      headers = [{"x-gitea-signature", signature(body, "shh")}]
+
+      assert :ok = Client.verify_webhook(@connection, headers, body, "shh")
+    end
+
+    test "rejects a body signed with another secret" do
+      body = ~s({"ref":"refs/heads/main"})
+      headers = [{"x-forgejo-signature", signature(body, "other")}]
+
+      assert {:error, :invalid_signature} =
+               Client.verify_webhook(@connection, headers, body, "shh")
+    end
+
+    test "rejects an unsigned delivery" do
+      assert {:error, :missing_signature} = Client.verify_webhook(@connection, [], "{}", "shh")
+    end
+  end
+
+  defp signature(body, secret),
+    do: Base.encode16(:crypto.mac(:hmac, :sha256, secret, body), case: :lower)
 end

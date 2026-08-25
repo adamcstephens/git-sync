@@ -5,6 +5,7 @@ defmodule GitSync.Mirror do
   """
 
   alias GitSync.Connection
+  alias GitSync.Forge
   alias GitSync.Git
   alias GitSync.Mapping
   alias GitSync.Repo
@@ -43,13 +44,6 @@ defmodule GitSync.Mirror do
 
   def auth_args(%Connection{}), do: []
 
-  @doc """
-  The clone URL for a repository on a forge.
-  """
-  def remote_url(%Connection{base_url: base_url}, repo) do
-    String.trim_trailing(base_url, "/") <> "/" <> repo
-  end
-
   defp credentials(:github, token), do: "x-access-token:" <> token
   defp credentials(:forgejo, token), do: token <> ":"
 
@@ -60,13 +54,13 @@ defmodule GitSync.Mirror do
       git(["remote", "update", "--prune"], connection, cd: workspace)
     else
       File.mkdir_p!(Path.dirname(workspace))
-      url = remote_url(connection, mapping.source_repo)
+      url = Forge.clone_url(connection, mapping.source_repo, :read)
       git(["clone", "--mirror", url, workspace], connection)
     end
   end
 
   defp push(%Mapping{destination_connection: connection} = mapping) do
-    url = remote_url(connection, mapping.destination_repo)
+    url = Forge.clone_url(connection, mapping.destination_repo, :write)
     args = ["push", "--mirror", "--force", "--porcelain", url]
 
     case git(args, connection, cd: workspace(mapping), output: true) do
