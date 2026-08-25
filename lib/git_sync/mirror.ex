@@ -11,6 +11,7 @@ defmodule GitSync.Mirror do
   alias GitSync.Repo
   alias GitSync.Run
   alias GitSync.Runs
+  alias GitSync.Ssh
 
   @doc """
   Mirrors one mapping, recording the attempt as a `Run`.
@@ -88,7 +89,12 @@ defmodule GitSync.Mirror do
 
   defp git(args, connection, opts \\ []) do
     {output?, opts} = Keyword.pop(opts, :output, false)
-    {result, output} = Git.run(auth_args(connection) ++ args, opts)
+
+    {result, output} =
+      Ssh.with_agent(connection, fn env ->
+        Git.run(auth_args(connection) ++ args, Keyword.put(opts, :env, env))
+      end)
+
     log = Enum.join(["$ git" | args], " ") <> "\n" <> output
 
     if output?, do: {result, log, output}, else: {result, log}

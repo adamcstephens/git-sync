@@ -6,7 +6,8 @@ defmodule GitSync.Git do
   @env [{"GIT_TERMINAL_PROMPT", "0"}, {"GIT_CONFIG_NOSYSTEM", "1"}]
 
   def run(args, opts \\ []) do
-    options = Keyword.merge([stderr_to_stdout: true, env: @env], opts)
+    {env, opts} = Keyword.pop(opts, :env, [])
+    options = Keyword.merge([stderr_to_stdout: true], opts) ++ [env: @env ++ env]
 
     case System.cmd("git", args, options) do
       {output, 0} -> {:ok, output}

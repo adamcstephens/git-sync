@@ -83,6 +83,28 @@ defmodule GitSync.MirrorTest do
       assert run.finished_at
     end
 
+    test "pushes to a knot over ssh", %{forge: forge} do
+      mapping = mapping(forge)
+
+      {:ok, destination} =
+        Repo.update(
+          Ecto.Changeset.change(mapping.destination_connection,
+            kind: :tangled,
+            base_url: "https://knot.invalid",
+            ssh_key: ssh_key(forge),
+            host_key: "knot.invalid ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
+          )
+        )
+
+      {:error, run} = Mirror.sync(%{mapping | destination_connection: destination})
+
+      assert run.status == :failure
+      assert run.log =~ "git push --mirror --force --porcelain git@knot.invalid:"
+      assert run.log =~ "Could not resolve hostname knot.invalid"
+      refute run.log =~ "PRIVATE KEY"
+      refute run.log =~ "git-sync-ssh"
+    end
+
     test "keeps the token out of the log and the workspace", %{forge: forge} do
       mapping = mapping(forge)
 
@@ -139,6 +161,12 @@ defmodule GitSync.MirrorTest do
     test "sends nothing when the connection holds no token" do
       assert Mirror.auth_args(%Connection{kind: :github}) == []
     end
+  end
+
+  defp ssh_key(forge) do
+    path = Path.join(forge, "id_ed25519")
+    {_, 0} = System.cmd("ssh-keygen", ["-t", "ed25519", "-N", "", "-C", "knot", "-f", path])
+    File.read!(path)
   end
 
   defp mapping(forge, overrides \\ []) do

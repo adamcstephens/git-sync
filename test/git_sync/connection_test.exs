@@ -35,6 +35,22 @@ defmodule GitSync.ConnectionTest do
     refute stored =~ "gho_secret"
   end
 
+  test "stores the knot host key as pasted" do
+    line = "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
+
+    {:ok, connection} =
+      Repo.insert(
+        Connection.changeset(%Connection{}, %{
+          kind: :tangled,
+          base_url: "https://knot.example.com",
+          ssh_key: "-----BEGIN OPENSSH PRIVATE KEY-----",
+          host_key: line
+        })
+      )
+
+    assert Repo.get!(Connection, connection.id).host_key == line
+  end
+
   test "redacts credentials from inspect output" do
     refute inspect(%Connection{token: "gho_secret", client_secret: "cs_secret"}) =~ "secret"
   end
