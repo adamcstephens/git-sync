@@ -10,6 +10,7 @@ defmodule GitSync.Mirror do
   alias GitSync.Mapping
   alias GitSync.Repo
   alias GitSync.Run
+  alias GitSync.Runs
 
   @doc """
   Mirrors one mapping, recording the attempt as a `Run`.
@@ -92,10 +93,16 @@ defmodule GitSync.Mirror do
     Path.join(Application.fetch_env!(:git_sync, :workspace_root), "#{id}.git")
   end
 
+  defp announce(%Run{} = run) do
+    Runs.broadcast(run)
+    run
+  end
+
   defp start_run(%Mapping{id: id}) do
     %Run{}
     |> Run.changeset(%{mapping_id: id, started_at: DateTime.utc_now()})
     |> Repo.insert!()
+    |> announce()
   end
 
   defp finish_run(run, status, log, refs) do
@@ -108,6 +115,7 @@ defmodule GitSync.Mirror do
         log: log
       })
       |> Repo.update!()
+      |> announce()
 
     if status == :success, do: {:ok, run}, else: {:error, run}
   end

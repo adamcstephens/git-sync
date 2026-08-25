@@ -35,6 +35,17 @@ defmodule GitSync.MirrorTest do
       assert refs(destination) == ["refs/heads/main"]
     end
 
+    test "broadcasts the run as it starts and finishes", %{forge: forge} do
+      mapping = mapping(forge)
+      :ok = GitSync.Runs.subscribe(mapping.id)
+
+      {:ok, run} = Mirror.sync(mapping)
+
+      assert_receive {:run, %{id: id, status: :running}}
+      assert_receive {:run, %{id: ^id, status: :success}}
+      assert id == run.id
+    end
+
     test "picks up later commits without recloning", %{forge: forge, source: source} do
       mapping = mapping(forge)
       {:ok, _} = Mirror.sync(mapping)
