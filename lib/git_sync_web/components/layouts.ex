@@ -36,6 +36,7 @@ defmodule GitSyncWeb.Layouts do
     <header class="site">
       <a href="/"><strong>git-sync</strong></a>
       <nav>
+        <.link :if={@current_operator} href={~p"/mappings"}>Mappings</.link>
         <.link :if={@current_operator} href={~p"/connections"}>Connections</.link>
         <.link :if={@current_operator} href={~p"/logout"} method="delete">Sign out</.link>
       </nav>

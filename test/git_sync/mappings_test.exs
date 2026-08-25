@@ -29,6 +29,41 @@ defmodule GitSync.MappingsTest do
     end
   end
 
+  describe "list/0" do
+    test "returns the mappings with their connections", %{forgejo: forgejo, github: github} do
+      {:ok, mapping} = Mappings.create(attrs(forgejo, github))
+
+      assert [listed] = Mappings.list()
+      assert listed.id == mapping.id
+      assert listed.source_connection.base_url == "https://forge.test"
+      assert listed.destination_connection.base_url == "https://github.com"
+    end
+  end
+
+  describe "update/2" do
+    test "switches a mapping off", %{forgejo: forgejo, github: github} do
+      {:ok, mapping} = Mappings.create(attrs(forgejo, github))
+
+      assert {:ok, mapping} = Mappings.update(mapping, %{enabled: false})
+      refute mapping.enabled
+    end
+
+    test "reports an invalid change", %{forgejo: forgejo, github: github} do
+      {:ok, mapping} = Mappings.create(attrs(forgejo, github))
+
+      assert {:error, %Ecto.Changeset{}} = Mappings.update(mapping, %{interval_seconds: 1})
+    end
+  end
+
+  describe "delete/1" do
+    test "removes the mapping", %{forgejo: forgejo, github: github} do
+      {:ok, mapping} = Mappings.create(attrs(forgejo, github))
+
+      assert {:ok, _mapping} = Mappings.delete(mapping)
+      assert is_nil(Mappings.get(mapping.id))
+    end
+  end
+
   describe "register_webhook/2" do
     test "records the hook the source forge created", %{forgejo: forgejo, github: github} do
       Req.Test.stub(GitSync.Http, fn conn ->

@@ -40,9 +40,7 @@ defmodule GitSync.Application do
   end
 
   defp start_runners do
-    unless Application.get_env(:git_sync, :start_runners) == false do
-      GitSync.Sync.start_enabled()
-    end
+    if GitSync.Sync.runners_enabled?(), do: GitSync.Sync.start_enabled()
   end
 
   defp skip_migrations?() do

@@ -48,6 +48,14 @@ defmodule GitSyncWeb.Router do
     pipe_through [:browser, :configured, :authenticated]
 
     get "/", PageController, :home
+    get "/mappings", MappingController, :index
+    post "/mappings", MappingController, :create
+    get "/mappings/repos", MappingController, :repos
+    get "/mappings/:id", MappingController, :show
+    put "/mappings/:id", MappingController, :update
+    delete "/mappings/:id", MappingController, :delete
+    post "/mappings/:id/sync", MappingController, :sync
+    get "/mappings/:id/events", MappingController, :events
     get "/connections", ConnectionController, :index
     post "/connections/github", GithubController, :create
     delete "/connections/github", GithubController, :delete

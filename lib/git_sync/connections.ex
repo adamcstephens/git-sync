@@ -8,6 +8,10 @@ defmodule GitSync.Connections do
   alias GitSync.Connection
   alias GitSync.Repo
 
+  def list, do: Repo.all(from c in Connection, order_by: [asc: c.id])
+
+  def get_by_id(id), do: Repo.get(Connection, id)
+
   def get(kind), do: Repo.one(from c in Connection, where: c.kind == ^kind)
 
   def forgejo, do: get(:forgejo)

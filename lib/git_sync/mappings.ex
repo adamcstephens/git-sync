@@ -11,7 +11,19 @@ defmodule GitSync.Mappings do
 
   @secret_bytes 32
 
-  def get(id), do: Repo.get(Mapping, id)
+  def get(id) do
+    Mapping
+    |> Repo.get(id)
+    |> Repo.preload([:source_connection, :destination_connection])
+  end
+
+  @doc """
+  Every mapping, newest first, with the forges at both ends.
+  """
+  def list do
+    Repo.all(from m in Mapping, order_by: [desc: m.id])
+    |> Repo.preload([:source_connection, :destination_connection])
+  end
 
   def enabled, do: Repo.all(from m in Mapping, where: m.enabled)
 
@@ -23,6 +35,14 @@ defmodule GitSync.Mappings do
     |> Mapping.changeset(attrs)
     |> Repo.insert()
   end
+
+  def update(%Mapping{} = mapping, attrs) do
+    mapping
+    |> Mapping.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete(%Mapping{} = mapping), do: Repo.delete(mapping)
 
   @doc """
   Asks the source forge to notify `base_url` when the repository moves. A forge

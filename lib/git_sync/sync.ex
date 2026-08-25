@@ -48,6 +48,24 @@ defmodule GitSync.Sync do
     start_runner(mapping, opts)
   end
 
+  @doc """
+  Brings the runner for a mapping in line with the row: a mapping that is
+  switched on gets a runner on its current interval, one that is switched off
+  gets none.
+  """
+  def reconcile(mapping, opts \\ [])
+
+  def reconcile(%Mapping{enabled: true} = mapping, opts) do
+    if runners_enabled?(), do: restart_runner(mapping, opts), else: :ok
+  end
+
+  def reconcile(%Mapping{} = mapping, _opts), do: stop_runner(mapping.id)
+
+  @doc """
+  Whether this node runs syncs at all. Test and console runs switch it off.
+  """
+  def runners_enabled?, do: Application.get_env(:git_sync, :start_runners) != false
+
   def stop_runner(mapping_id) do
     case whereis(mapping_id) do
       nil -> :ok

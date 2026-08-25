@@ -59,10 +59,12 @@ defmodule GitSync.SyncTest do
 
   test "stopping a runner leaves nothing behind", %{sync_fun: sync_fun, connections: connections} do
     mapping = mapping(connections)
-    {:ok, _} = Sync.start_runner(mapping, sync_fun: sync_fun)
+    {:ok, pid} = Sync.start_runner(mapping, sync_fun: sync_fun)
+    ref = Process.monitor(pid)
 
     :ok = Sync.stop_runner(mapping.id)
 
+    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
     assert Sync.running() == []
   end
 
@@ -102,6 +104,35 @@ defmodule GitSync.SyncTest do
 
     assert_receive {:synced, _}
     assert Sync.running() == [mapping.id]
+  end
+
+  describe "reconcile/2" do
+    setup do
+      Application.put_env(:git_sync, :start_runners, true)
+      on_exit(fn -> Application.put_env(:git_sync, :start_runners, false) end)
+    end
+
+    test "gives a switched-on mapping a runner", %{sync_fun: sync_fun, connections: connections} do
+      mapping = mapping(connections)
+
+      {:ok, pid} = Sync.reconcile(mapping, sync_fun: sync_fun)
+
+      assert Sync.whereis(mapping.id) == pid
+    end
+
+    test "takes the runner away from a switched-off mapping", %{
+      sync_fun: sync_fun,
+      connections: connections
+    } do
+      mapping = mapping(connections)
+      {:ok, pid} = Sync.start_runner(mapping, sync_fun: sync_fun)
+      ref = Process.monitor(pid)
+
+      :ok = Sync.reconcile(%{mapping | enabled: false}, sync_fun: sync_fun)
+
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
+      refute mapping.id in Sync.running()
+    end
   end
 
   defp mapping(connections, overrides \\ []) do

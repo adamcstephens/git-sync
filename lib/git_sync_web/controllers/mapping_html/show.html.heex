@@ -1,0 +1,30 @@
+<Layouts.app flash={@flash} current_operator={@current_operator}>
+  <.header>
+    {@mapping.source_repo} → {@mapping.destination_repo}
+    <:subtitle>
+      {@mapping.source_connection.base_url} to {@mapping.destination_connection.base_url},
+      every {@mapping.interval_seconds}s.
+    </:subtitle>
+    <:actions>
+      <.button href={~p"/mappings/#{@mapping}/sync"} method="post">Sync now</.button>
+      <.form for={%{}} action={~p"/mappings/#{@mapping}"} method="put">
+        <input type="hidden" name="mapping[enabled]" value={to_string(!@mapping.enabled)} />
+        <.button id="toggle-mapping" type="submit" variant="secondary">
+          {(@mapping.enabled && "Switch off") || "Switch on"}
+        </.button>
+      </.form>
+      <.button
+        href={~p"/mappings/#{@mapping}"}
+        method="delete"
+        variant="secondary"
+        data-confirm="Remove this mapping?"
+      >
+        Remove
+      </.button>
+    </:actions>
+  </.header>
+
+  <div data-init={"@get('#{~p"/mappings/#{@mapping}/events"}')"}>
+    <.runs runs={@runs} />
+  </div>
+</Layouts.app>
