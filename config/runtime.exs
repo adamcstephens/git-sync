@@ -23,6 +23,10 @@ end
 config :git_sync, GitSyncWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if workspace_root = System.get_env("WORKSPACE_ROOT") do
+  config :git_sync, workspace_root: workspace_root
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :git_sync, GitSyncWeb.Endpoint,

@@ -9,7 +9,8 @@ import Config
 
 config :git_sync,
   ecto_repos: [GitSync.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  workspace_root: Path.expand("../priv/workspaces", __DIR__)
 
 # Configure the endpoint
 config :git_sync, GitSyncWeb.Endpoint,

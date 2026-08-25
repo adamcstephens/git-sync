@@ -1,0 +1,120 @@
+defmodule GitSync.Mirror do
+  @moduledoc """
+  Moves refs from a source repository onto a destination replica by shelling
+  out to `git` against a per-mapping workspace.
+  """
+
+  alias GitSync.Connection
+  alias GitSync.Git
+  alias GitSync.Mapping
+  alias GitSync.Repo
+  alias GitSync.Run
+
+  @doc """
+  Mirrors one mapping, recording the attempt as a `Run`.
+  """
+  def sync(%Mapping{} = mapping) do
+    mapping = Repo.preload(mapping, [:source_connection, :destination_connection])
+    run = start_run(mapping)
+    {fetch_result, fetch_log} = fetch(mapping)
+
+    {status, log, refs} =
+      case fetch_result do
+        :error ->
+          {:failure, fetch_log, []}
+
+        :ok ->
+          case push(mapping) do
+            {:ok, push_log, refs} -> {:success, fetch_log <> push_log, refs}
+            {:error, push_log} -> {:failure, fetch_log <> push_log, []}
+          end
+      end
+
+    finish_run(run, status, log, refs)
+  end
+
+  @doc """
+  The credential arguments for a single `git` invocation. The token rides in
+  argv rather than in the workspace config, so it never lands on disk.
+  """
+  def auth_args(%Connection{kind: kind, token: token}) when is_binary(token) do
+    ["-c", "http.extraHeader=Authorization: Basic " <> Base.encode64(credentials(kind, token))]
+  end
+
+  def auth_args(%Connection{}), do: []
+
+  @doc """
+  The clone URL for a repository on a forge.
+  """
+  def remote_url(%Connection{base_url: base_url}, repo) do
+    String.trim_trailing(base_url, "/") <> "/" <> repo
+  end
+
+  defp credentials(:github, token), do: "x-access-token:" <> token
+  defp credentials(:forgejo, token), do: token <> ":"
+
+  defp fetch(%Mapping{source_connection: connection} = mapping) do
+    workspace = workspace(mapping)
+
+    if File.dir?(workspace) do
+      git(["remote", "update", "--prune"], connection, cd: workspace)
+    else
+      File.mkdir_p!(Path.dirname(workspace))
+      url = remote_url(connection, mapping.source_repo)
+      git(["clone", "--mirror", url, workspace], connection)
+    end
+  end
+
+  defp push(%Mapping{destination_connection: connection} = mapping) do
+    url = remote_url(connection, mapping.destination_repo)
+    args = ["push", "--mirror", "--force", "--porcelain", url]
+
+    case git(args, connection, cd: workspace(mapping), output: true) do
+      {:ok, log, output} -> {:ok, log, pushed_refs(output)}
+      {:error, log, _output} -> {:error, log}
+    end
+  end
+
+  defp git(args, connection, opts \\ []) do
+    {output?, opts} = Keyword.pop(opts, :output, false)
+    {result, output} = Git.run(auth_args(connection) ++ args, opts)
+    log = Enum.join(["$ git" | args], " ") <> "\n" <> output
+
+    if output?, do: {result, log, output}, else: {result, log}
+  end
+
+  defp pushed_refs(output) do
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.flat_map(fn line ->
+      case String.split(line, "\t") do
+        [flag, refs, _summary] when flag != "=" -> [refs |> String.split(":") |> List.last()]
+        _ -> []
+      end
+    end)
+  end
+
+  defp workspace(%Mapping{id: id}) do
+    Path.join(Application.fetch_env!(:git_sync, :workspace_root), "#{id}.git")
+  end
+
+  defp start_run(%Mapping{id: id}) do
+    %Run{}
+    |> Run.changeset(%{mapping_id: id, started_at: DateTime.utc_now()})
+    |> Repo.insert!()
+  end
+
+  defp finish_run(run, status, log, refs) do
+    run =
+      run
+      |> Run.changeset(%{
+        status: status,
+        finished_at: DateTime.utc_now(),
+        refs_pushed: refs,
+        log: log
+      })
+      |> Repo.update!()
+
+    if status == :success, do: {:ok, run}, else: {:error, run}
+  end
+end
