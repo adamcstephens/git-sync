@@ -9,6 +9,7 @@ defmodule GitSync.Application do
   def start(_type, _args) do
     children = [
       GitSyncWeb.Telemetry,
+      GitSync.Vault,
       GitSync.Repo,
       {Ecto.Migrator,
        repos: Application.fetch_env!(:git_sync, :ecto_repos), skip: skip_migrations?()},

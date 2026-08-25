@@ -53,7 +53,8 @@ defmodule GitSync.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:cloak_ecto, "~> 1.3.0"}
     ]
   end
 

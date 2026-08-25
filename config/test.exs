@@ -30,3 +30,10 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+config :git_sync, GitSync.Vault,
+  ciphers: [
+    default:
+      {Cloak.Ciphers.AES.GCM,
+       tag: "AES.GCM.V1", key: Base.decode64!("aqk/Lo+yqt9cBQo0Pi4TPYgfP/8hC9axhT3DMJecN5I=")}
+  ]
