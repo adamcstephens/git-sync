@@ -36,6 +36,17 @@ defmodule GitSync.Connection do
   end
 
   @doc """
+  Changeset for a knot, whose credential is an SSH keypair the operator pastes
+  in. The private key is never rendered back, so both secrets are re-entered on
+  every save.
+  """
+  def ssh_changeset(connection, attrs) do
+    connection
+    |> changeset(attrs)
+    |> validate_required([:ssh_key, :host_key])
+  end
+
+  @doc """
   Changeset for a forge whose credential is obtained over OAuth.
   """
   def oauth_changeset(connection, attrs) do

@@ -19,7 +19,7 @@ defmodule GitSyncWeb.GithubController do
         |> redirect(to: ~p"/connections")
 
       {:error, changeset} ->
-        ConnectionController.render_index(conn, ConnectionController.github_form(changeset))
+        ConnectionController.render_index(conn, github_form: ConnectionController.form(changeset))
     end
   end
 

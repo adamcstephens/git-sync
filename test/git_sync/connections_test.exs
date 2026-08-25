@@ -62,5 +62,37 @@ defmodule GitSync.ConnectionsTest do
     assert connection.token_expires_at == nil
   end
 
+  @tangled %{
+    "base_url" => "https://knot.example.com",
+    "ssh_key" => "-----BEGIN OPENSSH PRIVATE KEY-----",
+    "host_key" => "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
+  }
+
+  test "configuring tangled stores the keypair and the host key" do
+    refute Connections.tangled()
+
+    assert {:ok, connection} = Connections.configure_tangled(@tangled)
+
+    assert connection.kind == :tangled
+    assert connection.ssh_key == @tangled["ssh_key"]
+    assert connection.host_key == @tangled["host_key"]
+    assert Connections.tangled().id == connection.id
+  end
+
+  test "configuring tangled twice updates the single row" do
+    {:ok, first} = Connections.configure_tangled(@tangled)
+    {:ok, second} = Connections.configure_tangled(%{@tangled | "host_key" => "other key"})
+
+    assert first.id == second.id
+    assert second.host_key == "other key"
+  end
+
+  test "tangled requires the private key and the host key" do
+    assert {:error, changeset} =
+             Connections.configure_tangled(%{"base_url" => "https://knot.example.com"})
+
+    assert %{ssh_key: ["can't be blank"], host_key: ["can't be blank"]} = errors_on(changeset)
+  end
+
   defp token(access), do: Token.new(access, nil, nil)
 end

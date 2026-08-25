@@ -34,4 +34,36 @@ defmodule GitSyncWeb.ConnectionControllerTest do
 
     assert html_response(get(conn, ~p"/connections"), 200) =~ "Could not list repositories"
   end
+
+  test "offers a form to configure a Tangled knot", %{conn: conn} do
+    Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 401, ""))
+
+    html = html_response(get(conn, ~p"/connections"), 200)
+
+    assert html =~ "tangled-form"
+    refute html =~ "Could not list Tangled repositories"
+  end
+
+  test "saving a knot stores the connection", %{conn: conn} do
+    conn =
+      post(conn, ~p"/connections/tangled", %{
+        "connection" => %{
+          "base_url" => "https://knot.example.com",
+          "ssh_key" => "-----BEGIN OPENSSH PRIVATE KEY-----",
+          "host_key" => "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
+        }
+      })
+
+    assert redirected_to(conn) == ~p"/connections"
+    assert GitSync.Connections.tangled().base_url == "https://knot.example.com"
+  end
+
+  test "re-renders the page when the knot details are incomplete", %{conn: conn} do
+    Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 401, ""))
+
+    conn = post(conn, ~p"/connections/tangled", %{"connection" => %{"base_url" => ""}})
+
+    assert html_response(conn, 200) =~ "can&#39;t be blank"
+    refute GitSync.Connections.tangled()
+  end
 end

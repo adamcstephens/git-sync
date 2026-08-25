@@ -46,6 +46,31 @@
     <% end %>
   <% end %>
 
+  <.header>
+    Tangled
+    <:subtitle>
+      A knot speaks plain git. Paste the SSH key git-sync should push with and the
+      knot's host key line, as it appears in <code>known_hosts</code>.
+    </:subtitle>
+  </.header>
+
+  <.form for={@tangled_form} id="tangled-form" action={~p"/connections/tangled"}>
+    <.input
+      field={@tangled_form[:base_url]}
+      label="Knot URL"
+      placeholder="https://knot.example.com"
+    />
+    <.input field={@tangled_form[:ssh_key]} type="textarea" label="Private key" />
+    <.input
+      field={@tangled_form[:host_key]}
+      type="textarea"
+      label="Host key"
+      placeholder="knot.example.com ssh-ed25519 AAAA..."
+    />
+
+    <.button id="save-tangled" type="submit">Save knot</.button>
+  </.form>
+
   <%= case @github_repos do %>
     <% {:ok, repos} -> %>
       <ul id="github-repos">

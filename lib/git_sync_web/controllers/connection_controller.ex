@@ -7,30 +7,38 @@ defmodule GitSyncWeb.ConnectionController do
   alias GitSync.Connections
   alias GitSync.Forge
 
-  def index(conn, _params) do
-    render_index(conn, github_form(Connection.oauth_changeset(%Connection{}, %{})))
-  end
+  def index(conn, _params), do: render_index(conn)
 
   @doc """
-  Renders the connections page. GitHub's own actions land back here, so the
-  form they were submitted from has to be rebuildable from outside this module.
+  Renders the connections page. Each forge's own actions land back here, so the
+  forms they were submitted from have to be rebuildable from outside this
+  module; a failed submission passes its changeset in as an override.
   """
-  def render_index(conn, github_form) do
+  def render_index(conn, overrides \\ []) do
     forgejo = Connections.forgejo()
     github = Connections.github()
+    tangled = Connections.tangled()
+
+    assigns =
+      Keyword.merge(
+        [
+          connection: forgejo,
+          repos: Forge.list_repos(forgejo),
+          github: github,
+          github_repos: github_repos(github),
+          github_form: form(Connection.oauth_changeset(%Connection{}, %{})),
+          tangled: tangled,
+          tangled_form: form(Connection.changeset(tangled || %Connection{}, %{}))
+        ],
+        overrides
+      )
 
     conn
     |> put_view(html: GitSyncWeb.ConnectionHTML)
-    |> render(:index,
-      connection: forgejo,
-      repos: Forge.list_repos(forgejo),
-      github: github,
-      github_repos: github_repos(github),
-      github_form: github_form
-    )
+    |> render(:index, assigns)
   end
 
-  def github_form(changeset), do: to_form(changeset)
+  def form(changeset), do: to_form(changeset)
 
   defp github_repos(%Connection{token: token} = github) when is_binary(token),
     do: Forge.list_repos(github)

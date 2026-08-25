@@ -19,6 +19,8 @@ defmodule GitSync.Connections do
 
   def github, do: get(:github)
 
+  def tangled, do: get(:tangled)
+
   @doc """
   Whether the first-run wizard has been completed.
   """
@@ -57,6 +59,17 @@ defmodule GitSync.Connections do
       |> Connection.oauth_changeset(
         Map.merge(attrs, %{"kind" => :github, "base_url" => "https://github.com"})
       )
+
+    Repo.insert_or_update(changeset)
+  end
+
+  @doc """
+  Saves the knot's base URL and the keypair used to push to it.
+  """
+  def configure_tangled(attrs) do
+    changeset =
+      (tangled() || %Connection{})
+      |> Connection.ssh_changeset(Map.put(attrs, "kind", :tangled))
 
     Repo.insert_or_update(changeset)
   end
