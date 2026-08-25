@@ -15,8 +15,7 @@ defmodule GitSync.Application do
        repos: Application.fetch_env!(:git_sync, :ecto_repos), skip: skip_migrations?()},
       {Phoenix.PubSub, name: GitSync.PubSub},
       GitSync.Forgejo.Provider,
-      # Start a worker by calling: GitSync.Worker.start_link(arg)
-      # {GitSync.Worker, arg},
+      GitSync.Sync,
       # Start to serve requests, typically the last entry
       GitSyncWeb.Endpoint
     ]
@@ -27,6 +26,7 @@ defmodule GitSync.Application do
 
     with {:ok, pid} <- Supervisor.start_link(children, opts) do
       GitSync.Forgejo.Provider.start_configured()
+      start_runners()
       {:ok, pid}
     end
   end
@@ -37,6 +37,12 @@ defmodule GitSync.Application do
   def config_change(changed, _new, removed) do
     GitSyncWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp start_runners do
+    unless Application.get_env(:git_sync, :start_runners) == false do
+      GitSync.Sync.start_enabled()
+    end
   end
 
   defp skip_migrations?() do

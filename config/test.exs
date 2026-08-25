@@ -40,3 +40,6 @@ config :git_sync, GitSync.Vault,
 
 # Outbound HTTP is stubbed per test process; see `Req.Test`.
 config :git_sync, :req_options, plug: {Req.Test, GitSync.Http}
+
+# The sync runners are started per test, not at boot.
+config :git_sync, start_runners: false
