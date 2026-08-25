@@ -49,6 +49,10 @@ defmodule GitSyncWeb.Router do
 
     get "/", PageController, :home
     get "/connections", ConnectionController, :index
+    post "/connections/github", GithubController, :create
+    delete "/connections/github", GithubController, :delete
+    get "/auth/github", GithubController, :authorize
+    get "/auth/github/callback", GithubController, :callback
     delete "/logout", SessionController, :delete
   end
 

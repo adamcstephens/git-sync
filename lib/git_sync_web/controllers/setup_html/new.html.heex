@@ -3,7 +3,7 @@
     Set up git-sync
     <:subtitle>
       Point git-sync at your Forgejo instance. Register an OAuth2 application there first,
-      with <code>{GitSyncWeb.SessionController.callback_url(@conn)}</code> as its redirect URI.
+      with <code>{GitSyncWeb.RedirectUri.forgejo_callback(@conn)}</code> as its redirect URI.
     </:subtitle>
   </.header>
 

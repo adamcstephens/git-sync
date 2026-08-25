@@ -19,4 +19,40 @@
     <% {:error, reason} -> %>
       <p id="forgejo-error">Could not list repositories: {reason}</p>
   <% end %>
+
+  <.header>
+    GitHub
+    <:subtitle>
+      Register an OAuth application on GitHub with
+      <code>{GitSyncWeb.RedirectUri.github_callback(@conn)}</code>
+      as its callback URL, then connect it here.
+    </:subtitle>
+  </.header>
+
+  <.form for={@github_form} id="github-form" action={~p"/connections/github"}>
+    <.input field={@github_form[:client_id]} label="Client ID" />
+    <.input field={@github_form[:client_secret]} type="password" label="Client secret" />
+
+    <.button id="save-github" type="submit">Save application</.button>
+  </.form>
+
+  <%= if @github && @github.client_id do %>
+    <%= if @github.token do %>
+      <.button id="disconnect-github" href={~p"/connections/github"} method="delete">
+        Disconnect GitHub
+      </.button>
+    <% else %>
+      <.button id="connect-github" href={~p"/auth/github"}>Connect GitHub</.button>
+    <% end %>
+  <% end %>
+
+  <%= case @github_repos do %>
+    <% {:ok, repos} -> %>
+      <ul id="github-repos">
+        <li :for={repo <- repos}>{repo.full_name}</li>
+      </ul>
+    <% {:error, reason} -> %>
+      <p id="github-error">Could not list GitHub repositories: {reason}</p>
+    <% nil -> %>
+  <% end %>
 </Layouts.app>
