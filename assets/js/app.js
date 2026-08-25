@@ -83,9 +83,25 @@ import "../vendor/datastar.js"
 // }
 
 
-// Handle flash close
-document.querySelectorAll("[role=alert][data-flash]").forEach((el) => {
-  el.addEventListener("click", () => {
-    el.setAttribute("hidden", "")
-  })
+const AUTO_DISMISS_MS = 5000
+
+document.addEventListener("click", (event) => {
+  const close = event.target.closest("[data-flash-close]")
+  if (close) { close.closest("[data-flash]").remove() }
 })
+
+const scheduleDismiss = (el) => {
+  if (el.dataset.flashDismissing) { return }
+  el.dataset.flashDismissing = "true"
+  setTimeout(() => el.remove(), AUTO_DISMISS_MS)
+}
+
+const scheduleAll = (root) => {
+  if (root.matches?.("[data-flash-autodismiss]")) { scheduleDismiss(root) }
+  root.querySelectorAll?.("[data-flash-autodismiss]").forEach(scheduleDismiss)
+}
+
+scheduleAll(document)
+new MutationObserver((records) => {
+  records.forEach((record) => record.addedNodes.forEach(scheduleAll))
+}).observe(document.body, {childList: true, subtree: true})

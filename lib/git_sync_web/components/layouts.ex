@@ -42,11 +42,11 @@ defmodule GitSyncWeb.Layouts do
       </nav>
     </header>
 
+    <.flash_group flash={@flash} />
+
     <main>
       {render_slot(@inner_block)}
     </main>
-
-    <.flash_group flash={@flash} />
     """
   end
 

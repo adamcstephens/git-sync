@@ -43,6 +43,7 @@ defmodule GitSyncWeb.CoreComponents do
       id={@id}
       data-flash
       data-kind={@kind}
+      data-flash-autodismiss={@kind == :info}
       role="alert"
       {@rest}
     >
@@ -50,7 +51,7 @@ defmodule GitSyncWeb.CoreComponents do
         <p :if={@title}><strong>{@title}</strong></p>
         <p>{msg}</p>
       </div>
-      <button type="button" aria-label="close">&times;</button>
+      <button type="button" data-flash-close aria-label="close">&times;</button>
     </div>
     """
   end
