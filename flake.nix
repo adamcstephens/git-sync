@@ -2,6 +2,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    erl_dist_mcp.url = "git+file:/home/adam/git/erl_dist_mcp";
   };
 
   outputs =
@@ -53,12 +54,17 @@
               pkgs.git
               pkgs.just
               pkgs.sqlite
+              inputs.erl_dist_mcp.packages.${pkgs.stdenv.hostPlatform.system}.default
             ]
             ++ (lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.inotify-tools ]);
 
             shellHook = ''
               export ERL_AFLAGS="-kernel shell_history enabled -kernel shell_history_file_bytes 1024000"
               export MIX_ESBUILD_PATH="${lib.getExe pkgs.esbuild}"
+
+              if [ ! -e .erlang.cookie ]; then
+                ${lib.getExe pkgs.pwgen} -1 16 > .erlang.cookie
+              fi
             '';
           };
         };

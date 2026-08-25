@@ -7,7 +7,7 @@ setup:
     mix setup
 
 server:
-    iex -S mix phx.server
+    iex --name git-sync-dev@localhost --cookie $(cat .erlang.cookie) -S mix phx.server
 
 test:
     mix test

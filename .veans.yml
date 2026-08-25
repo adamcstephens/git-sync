@@ -1,5 +1,6 @@
 server: https://project.junco.dev
 project_id: 10
+project_identifier: GS
 view_id: 40
 buckets:
     todo: 34

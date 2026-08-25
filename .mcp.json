@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "erlang": {
+      "command": "erl_dist_mcp",
+      "args": ["--mode", "elixir", "--node", "git-sync-dev@localhost"],
+      "env": {}
+    }
+  }
+}
