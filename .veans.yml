@@ -1,0 +1,12 @@
+server: https://project.junco.dev
+project_id: 10
+view_id: 40
+buckets:
+    todo: 34
+    in_progress: 35
+    in_review: 37
+    done: 36
+    scrapped: 38
+bot:
+    username: bot-git-sync
+    user_id: 6
