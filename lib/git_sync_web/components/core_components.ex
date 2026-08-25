@@ -8,18 +8,8 @@ defmodule GitSyncWeb.CoreComponents do
   with doc strings and declarative assigns. You may customize and style
   them in any way you want, based on your application growth and needs.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
-
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
-
-    * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
-      we build on. You will use it for layout, sizing, flexbox, grid, and
-      spacing.
-
-    * [Heroicons](https://heroicons.com) - see `icon/1` for usage.
+  Styling is hand-written CSS in `assets/css/app.css`; components carry
+  semantic class names rather than utility classes.
 
     * [Phoenix.Component](https://phoenix-live-view.hexdocs.pm/Phoenix.Component.html) -
       the component system used by Phoenix. Some components, such as `<.link>`
@@ -59,26 +49,15 @@ defmodule GitSyncWeb.CoreComponents do
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
       data-flash
+      data-kind={@kind}
       role="alert"
-      class="toast toast-top toast-end z-50"
       {@rest}
     >
-      <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
-      ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
-        </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label="close">
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
-        </button>
+      <div>
+        <p :if={@title}><strong>{@title}</strong></p>
+        <p>{msg}</p>
       </div>
+      <button type="button" aria-label="close">&times;</button>
     </div>
     """
   end
@@ -89,25 +68,20 @@ defmodule GitSyncWeb.CoreComponents do
   ## Examples
 
       <.button>Send!</.button>
-      <.button phx-click="go" variant="primary">Send!</.button>
+      <.button variant="secondary">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
   attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :variant, :string, values: ~w(primary secondary), default: "primary"
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
-
-    assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+    assigns = assign_new(assigns, :class, fn -> assigns.variant end)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
-      <.link class={@class} {@rest}>
+      <.link class={["button", @class]} {@rest}>
         {render_slot(@inner_block)}
       </.link>
       """
@@ -209,7 +183,7 @@ defmodule GitSyncWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="field checkbox">
       <label for={@id}>
         <input
           type="hidden"
@@ -218,17 +192,15 @@ defmodule GitSyncWeb.CoreComponents do
           disabled={@rest[:disabled]}
           form={@rest[:form]}
         />
-        <span class="label">
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
-            {@rest}
-          />{@label}
-        </span>
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={@class}
+          {@rest}
+        />{@label}
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -237,13 +209,14 @@ defmodule GitSyncWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="field">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label}>{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[@class, @errors != [] && @error_class]}
+          aria-invalid={@errors != []}
           multiple={@multiple}
           {@rest}
         >
@@ -258,16 +231,14 @@ defmodule GitSyncWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="field">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label}>{@label}</span>
         <textarea
           id={@id}
           name={@name}
-          class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
-          ]}
+          class={[@class, @errors != [] && @error_class]}
+          aria-invalid={@errors != []}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
       </label>
@@ -279,18 +250,16 @@ defmodule GitSyncWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="field">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label}>{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
-          ]}
+          class={[@class, @errors != [] && @error_class]}
+          aria-invalid={@errors != []}
           {@rest}
         />
       </label>
@@ -302,10 +271,7 @@ defmodule GitSyncWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
-      <.icon name="hero-exclamation-circle" class="size-5" />
-      {render_slot(@inner_block)}
-    </p>
+    <p class="field-error">{render_slot(@inner_block)}</p>
     """
   end
 
@@ -318,16 +284,12 @@ defmodule GitSyncWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
+    <header>
       <div>
-        <h1 class="text-lg font-semibold leading-8">
-          {render_slot(@inner_block)}
-        </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
-          {render_slot(@subtitle)}
-        </p>
+        <h1>{render_slot(@inner_block)}</h1>
+        <p :if={@subtitle != []}>{render_slot(@subtitle)}</p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div :if={@actions != []}>{render_slot(@actions)}</div>
     </header>
     """
   end
@@ -364,7 +326,7 @@ defmodule GitSyncWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
+    <table>
       <thead>
         <tr>
           <th :for={col <- @col}>{col[:label]}</th>
@@ -378,12 +340,11 @@ defmodule GitSyncWeb.CoreComponents do
           <td
             :for={col <- @col}
             phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
           >
             {render_slot(col, @row_item.(row))}
           </td>
-          <td :if={@action != []} class="w-0 font-semibold">
-            <div class="flex gap-4">
+          <td :if={@action != []}>
+            <div>
               <%= for action <- @action do %>
                 {render_slot(action, @row_item.(row))}
               <% end %>
@@ -411,41 +372,12 @@ defmodule GitSyncWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
-          <div class="font-bold">{item.title}</div>
-          <div>{render_slot(item)}</div>
-        </div>
-      </li>
-    </ul>
-    """
-  end
-
-  @doc """
-  Renders a [Heroicon](https://heroicons.com).
-
-  Heroicons come in three styles – outline, solid, and mini.
-  By default, the outline style is used, but solid and mini may
-  be applied by using the `-solid` and `-mini` suffix.
-
-  You can customize the size and colors of the icons by setting
-  width, height, and background color classes.
-
-  Icons are extracted from the `deps/heroicons` directory and bundled within
-  your compiled app.css by the plugin in `assets/vendor/heroicons.js`.
-
-  ## Examples
-
-      <.icon name="hero-x-mark" />
-      <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
-  """
-  attr :name, :string, required: true
-  attr :class, :any, default: "size-4"
-
-  def icon(%{name: "hero-" <> _} = assigns) do
-    ~H"""
-    <span class={[@name, @class]} />
+    <dl class="data-list">
+      <%= for item <- @item do %>
+        <dt>{item.title}</dt>
+        <dd>{render_slot(item)}</dd>
+      <% end %>
+    </dl>
     """
   end
 

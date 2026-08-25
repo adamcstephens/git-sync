@@ -22,8 +22,7 @@ config :git_sync, GitSyncWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "mzx8rjBRM2vlPRBrAT/il5eczZzJ0kY/mEMDv016DWBRwhX2OigzJ4flhqmVjjB/",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:git_sync, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:git_sync, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:git_sync, ~w(--sourcemap=inline --watch)]}
   ]
 
 # ## SSL Support
