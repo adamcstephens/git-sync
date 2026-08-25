@@ -31,6 +31,7 @@
               beamPackages.elixir-ls
               beamPackages.hex
               beamPackages.rebar3
+              pkgs.esbuild
               pkgs.git
               pkgs.just
               pkgs.sqlite
@@ -39,6 +40,7 @@
 
             shellHook = ''
               export ERL_AFLAGS="-kernel shell_history enabled -kernel shell_history_file_bytes 1024000"
+              export MIX_ESBUILD_PATH="${lib.getExe pkgs.esbuild}"
             '';
           };
         };

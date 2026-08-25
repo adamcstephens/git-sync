@@ -22,9 +22,10 @@ config :git_sync, GitSyncWeb.Endpoint,
   pubsub_server: GitSync.PubSub,
   live_view: [signing_salt: "1a81mGyW"]
 
-# Configure esbuild (the version is required)
+# esbuild comes from the nix devShell, not from a download.
 config :esbuild,
-  version: "0.25.4",
+  path: System.fetch_env!("MIX_ESBUILD_PATH"),
+  version_check: false,
   git_sync: [
     args:
       ~w(js/app.js css/app.css --bundle --target=es2022 --outdir=../priv/static/assets --external:/fonts/* --external:/images/* --alias:@=.),
