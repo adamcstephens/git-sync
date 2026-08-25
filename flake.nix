@@ -31,6 +31,9 @@
               beamPackages.elixir-ls
               beamPackages.hex
               beamPackages.rebar3
+              pkgs.git
+              pkgs.just
+              pkgs.sqlite
             ]
             ++ (lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.inotify-tools ]);
 
