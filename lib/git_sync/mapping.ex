@@ -16,6 +16,8 @@ defmodule GitSync.Mapping do
     field :destination_repo, :string
     field :interval_seconds, :integer, default: 3600
     field :enabled, :boolean, default: true
+    field :webhook_secret, GitSync.Encrypted.Binary, redact: true
+    field :webhook_id, :string
 
     belongs_to :source_connection, Connection
     belongs_to :destination_connection, Connection

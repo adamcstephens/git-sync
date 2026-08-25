@@ -56,6 +56,12 @@ defmodule GitSyncWeb.Router do
     delete "/logout", SessionController, :delete
   end
 
+  scope "/", GitSyncWeb do
+    pipe_through :api
+
+    post "/webhooks/:mapping_id", WebhookController, :create
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", GitSyncWeb do
   #   pipe_through :api
