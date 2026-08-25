@@ -14,6 +14,9 @@ defmodule GitSync.Connection do
     field :base_url, :string
     field :token, GitSync.Encrypted.Binary, redact: true
     field :ssh_key, GitSync.Encrypted.Binary, redact: true
+    field :client_id, :string
+    field :client_secret, GitSync.Encrypted.Binary, redact: true
+    field :operator, :string
 
     timestamps(type: :utc_datetime)
   end
@@ -26,6 +29,16 @@ defmodule GitSync.Connection do
     |> validate_required([:kind, :base_url])
     |> validate_change(:base_url, &validate_url/2)
     |> unique_constraint(:kind)
+  end
+
+  @doc """
+  Changeset for a forge whose credential is obtained over OAuth.
+  """
+  def oauth_changeset(connection, attrs) do
+    connection
+    |> changeset(attrs)
+    |> cast(attrs, [:client_id, :client_secret])
+    |> validate_required([:client_id, :client_secret])
   end
 
   defp validate_url(field, value) do

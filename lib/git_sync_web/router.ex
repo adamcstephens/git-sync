@@ -13,6 +13,14 @@ defmodule GitSyncWeb.Router do
     plug :fetch_operator
   end
 
+  pipeline :configured do
+    plug :require_setup
+  end
+
+  pipeline :unconfigured do
+    plug :require_unconfigured
+  end
+
   pipeline :authenticated do
     plug :require_operator
   end
@@ -22,16 +30,25 @@ defmodule GitSyncWeb.Router do
   end
 
   scope "/", GitSyncWeb do
-    pipe_through :browser
+    pipe_through [:browser, :unconfigured]
 
-    get "/login", SessionController, :new
-    post "/auth/forgejo", SessionController, :create
+    get "/setup", SetupController, :new
+    post "/setup", SetupController, :create
   end
 
   scope "/", GitSyncWeb do
-    pipe_through [:browser, :authenticated]
+    pipe_through [:browser, :configured]
+
+    get "/login", SessionController, :new
+    post "/auth/forgejo", SessionController, :create
+    get "/auth/forgejo/callback", SessionController, :callback
+  end
+
+  scope "/", GitSyncWeb do
+    pipe_through [:browser, :configured, :authenticated]
 
     get "/", PageController, :home
+    get "/connections", ConnectionController, :index
     delete "/logout", SessionController, :delete
   end
 

@@ -1,0 +1,17 @@
+<Layouts.app flash={@flash}>
+  <.header>
+    Set up git-sync
+    <:subtitle>
+      Point git-sync at your Forgejo instance. Register an OAuth2 application there first,
+      with <code>{url(~p"/auth/forgejo/callback")}</code> as its redirect URI.
+    </:subtitle>
+  </.header>
+
+  <.form for={@form} id="setup-form" action={~p"/setup"}>
+    <.input field={@form[:base_url]} label="Forgejo URL" placeholder="https://codeberg.org" />
+    <.input field={@form[:client_id]} label="Client ID" />
+    <.input field={@form[:client_secret]} type="password" label="Client secret" />
+
+    <.button id="save-setup" type="submit">Save and verify</.button>
+  </.form>
+</Layouts.app>

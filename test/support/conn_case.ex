@@ -35,4 +35,18 @@ defmodule GitSyncWeb.ConnCase do
     GitSync.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Completes the first-run wizard, so routes behind the setup gate are reachable.
+  """
+  def configure_forgejo(_context) do
+    {:ok, connection} =
+      GitSync.Connections.configure_forgejo(%{
+        "base_url" => "https://forge.test",
+        "client_id" => "abc",
+        "client_secret" => "shh"
+      })
+
+    %{connection: connection}
+  end
 end

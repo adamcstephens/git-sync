@@ -64,7 +64,7 @@ defmodule GitSyncWeb.CoreComponents do
       <.button variant="secondary">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
+  attr :rest, :global, include: ~w(href navigate patch method download name value disabled type)
   attr :class, :any
   attr :variant, :string, values: ~w(primary secondary), default: "primary"
   slot :inner_block, required: true

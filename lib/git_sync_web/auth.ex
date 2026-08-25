@@ -44,6 +44,33 @@ defmodule GitSyncWeb.Auth do
     end
   end
 
+  @doc """
+  Sends every request to the wizard until the Forgejo instance is configured.
+  """
+  def require_setup(conn, _opts) do
+    if GitSync.Connections.configured?() do
+      conn
+    else
+      conn
+      |> redirect(to: ~p"/setup")
+      |> halt()
+    end
+  end
+
+  @doc """
+  Closes the wizard once it has been completed, so the gate cannot be repointed
+  at an attacker's instance.
+  """
+  def require_unconfigured(conn, _opts) do
+    if GitSync.Connections.configured?() do
+      conn
+      |> redirect(to: ~p"/")
+      |> halt()
+    else
+      conn
+    end
+  end
+
   defp renew_session(conn) do
     conn
     |> configure_session(renew: true)

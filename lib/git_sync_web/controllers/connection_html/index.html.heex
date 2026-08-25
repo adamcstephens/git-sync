@@ -1,0 +1,22 @@
+<Layouts.app flash={@flash} current_operator={@current_operator}>
+  <.header>
+    Connections
+    <:subtitle>Forges git-sync can read from and write to.</:subtitle>
+  </.header>
+
+  <.list>
+    <:item title="Forgejo">{@connection.base_url}</:item>
+    <:item title="Operator">{@connection.operator}</:item>
+  </.list>
+
+  <.header>Repositories</.header>
+
+  <%= case @repos do %>
+    <% {:ok, repos} -> %>
+      <ul id="forgejo-repos">
+        <li :for={repo <- repos}>{repo.full_name}</li>
+      </ul>
+    <% {:error, reason} -> %>
+      <p id="forgejo-error">Could not list repositories: {reason}</p>
+  <% end %>
+</Layouts.app>

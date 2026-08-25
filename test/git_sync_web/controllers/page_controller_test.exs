@@ -1,6 +1,8 @@
 defmodule GitSyncWeb.PageControllerTest do
   use GitSyncWeb.ConnCase
 
+  setup :configure_forgejo
+
   test "GET / renders the dashboard for the operator", %{conn: conn} do
     conn =
       conn

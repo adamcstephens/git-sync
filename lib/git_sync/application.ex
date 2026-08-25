@@ -14,6 +14,7 @@ defmodule GitSync.Application do
       {Ecto.Migrator,
        repos: Application.fetch_env!(:git_sync, :ecto_repos), skip: skip_migrations?()},
       {Phoenix.PubSub, name: GitSync.PubSub},
+      GitSync.Forgejo.Provider,
       # Start a worker by calling: GitSync.Worker.start_link(arg)
       # {GitSync.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -23,7 +24,11 @@ defmodule GitSync.Application do
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: GitSync.Supervisor]
-    Supervisor.start_link(children, opts)
+
+    with {:ok, pid} <- Supervisor.start_link(children, opts) do
+      GitSync.Forgejo.Provider.start_configured()
+      {:ok, pid}
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
