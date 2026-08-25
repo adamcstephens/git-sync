@@ -7,6 +7,7 @@ defmodule GitSync.Github.Client do
   @behaviour GitSync.Forge
 
   alias GitSync.Connection
+  alias GitSync.Forge.Pages
   alias GitSync.Forge.Webhook
 
   @api_url "https://api.github.com"
@@ -17,19 +18,23 @@ defmodule GitSync.Github.Client do
   """
   @impl GitSync.Forge
   def list_repos(%Connection{token: token}) do
-    request =
-      request(
-        url: "/user/repos",
-        params: [per_page: 50, sort: "full_name"],
-        auth: {:bearer, token}
-      )
+    fetch = fn page, per_page ->
+      request =
+        request(
+          url: "/user/repos",
+          params: [page: page, per_page: per_page, sort: "full_name"],
+          auth: {:bearer, token}
+        )
 
-    case Req.get(request) do
-      {:ok, %Req.Response{status: 200, body: repos}} when is_list(repos) ->
-        {:ok, Enum.map(repos, &repo/1)}
+      case Req.get(request) do
+        {:ok, %Req.Response{status: 200, body: repos}} when is_list(repos) -> {:ok, repos}
+        other -> error(other)
+      end
+    end
 
-      other ->
-        error(other)
+    case Pages.collect(fetch) do
+      {:ok, repos} -> {:ok, repos |> Enum.reject(& &1["archived"]) |> Enum.map(&repo/1)}
+      {:error, reason} -> {:error, reason}
     end
   end
 

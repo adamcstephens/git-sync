@@ -26,10 +26,46 @@ defmodule GitSync.Github.ClientTest do
     assert {:ok, [%{full_name: "adam/git-sync", private: true}]} = Client.list_repos(@connection)
   end
 
+  test "follows pagination until a short page comes back" do
+    stub(fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params["per_page"] == "50"
+
+      case conn.query_params["page"] do
+        "1" -> Req.Test.json(conn, Enum.map(1..50, &github_repo("adam/repo-#{&1}")))
+        "2" -> Req.Test.json(conn, [github_repo("adam/zulu")])
+      end
+    end)
+
+    assert {:ok, repos} = Client.list_repos(@connection)
+    assert length(repos) == 51
+    assert List.last(repos).full_name == "adam/zulu"
+  end
+
+  test "omits archived repositories" do
+    stub(fn conn ->
+      Req.Test.json(conn, [
+        github_repo("adam/git-sync"),
+        Map.put(github_repo("adam/retired"), "archived", true)
+      ])
+    end)
+
+    assert {:ok, [%{full_name: "adam/git-sync"}]} = Client.list_repos(@connection)
+  end
+
   test "reports an unauthorized response" do
     stub(fn conn -> Plug.Conn.send_resp(conn, 401, "") end)
 
     assert {:error, "GitHub returned HTTP 401"} = Client.list_repos(@connection)
+  end
+
+  defp github_repo(full_name) do
+    %{
+      "full_name" => full_name,
+      "clone_url" => "https://github.com/#{full_name}.git",
+      "private" => true,
+      "archived" => false
+    }
   end
 
   describe "clone_url/3" do

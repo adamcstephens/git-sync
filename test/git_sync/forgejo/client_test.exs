@@ -25,10 +25,46 @@ defmodule GitSync.Forgejo.ClientTest do
     assert {:ok, [%{full_name: "adam/git-sync", private: false}]} = Client.list_repos(@connection)
   end
 
+  test "follows pagination until a short page comes back" do
+    stub(fn conn ->
+      conn = Plug.Conn.fetch_query_params(conn)
+      assert conn.query_params["limit"] == "50"
+
+      case conn.query_params["page"] do
+        "1" -> Req.Test.json(conn, Enum.map(1..50, &forgejo_repo("adam/repo-#{&1}")))
+        "2" -> Req.Test.json(conn, [forgejo_repo("adam/zulu")])
+      end
+    end)
+
+    assert {:ok, repos} = Client.list_repos(@connection)
+    assert length(repos) == 51
+    assert List.last(repos).full_name == "adam/zulu"
+  end
+
+  test "omits archived repositories" do
+    stub(fn conn ->
+      Req.Test.json(conn, [
+        forgejo_repo("adam/git-sync"),
+        Map.put(forgejo_repo("adam/retired"), "archived", true)
+      ])
+    end)
+
+    assert {:ok, [%{full_name: "adam/git-sync"}]} = Client.list_repos(@connection)
+  end
+
   test "reports an unauthorized response" do
     stub(fn conn -> Plug.Conn.send_resp(conn, 401, "") end)
 
     assert {:error, "Forgejo returned HTTP 401"} = Client.list_repos(@connection)
+  end
+
+  defp forgejo_repo(full_name) do
+    %{
+      "full_name" => full_name,
+      "clone_url" => "https://codeberg.org/#{full_name}.git",
+      "private" => false,
+      "archived" => false
+    }
   end
 
   describe "clone_url/3" do

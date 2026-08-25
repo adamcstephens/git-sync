@@ -7,6 +7,7 @@ defmodule GitSync.Forgejo.Client do
   @behaviour GitSync.Forge
 
   alias GitSync.Connection
+  alias GitSync.Forge.Pages
   alias GitSync.Forge.Webhook
 
   @signature_headers ["x-forgejo-signature", "x-gitea-signature"]
@@ -16,19 +17,23 @@ defmodule GitSync.Forgejo.Client do
   """
   @impl GitSync.Forge
   def list_repos(%Connection{token: token} = connection) do
-    request =
-      request(connection,
-        url: "/api/v1/user/repos",
-        params: [limit: 50],
-        auth: {:bearer, token}
-      )
+    fetch = fn page, limit ->
+      request =
+        request(connection,
+          url: "/api/v1/user/repos",
+          params: [page: page, limit: limit],
+          auth: {:bearer, token}
+        )
 
-    case Req.get(request) do
-      {:ok, %Req.Response{status: 200, body: repos}} when is_list(repos) ->
-        {:ok, Enum.map(repos, &repo/1)}
+      case Req.get(request) do
+        {:ok, %Req.Response{status: 200, body: repos}} when is_list(repos) -> {:ok, repos}
+        other -> error(other)
+      end
+    end
 
-      other ->
-        error(other)
+    case Pages.collect(fetch) do
+      {:ok, repos} -> {:ok, repos |> Enum.reject(& &1["archived"]) |> Enum.map(&repo/1)}
+      {:error, reason} -> {:error, reason}
     end
   end
 
