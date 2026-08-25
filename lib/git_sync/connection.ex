@@ -13,6 +13,9 @@ defmodule GitSync.Connection do
     field :kind, Ecto.Enum, values: @kinds
     field :base_url, :string
     field :token, GitSync.Encrypted.Binary, redact: true
+    field :refresh_token, GitSync.Encrypted.Binary, redact: true
+    field :token_expires_at, :utc_datetime
+    field :subject, :string
     field :ssh_key, GitSync.Encrypted.Binary, redact: true
     field :client_id, :string
     field :client_secret, GitSync.Encrypted.Binary, redact: true

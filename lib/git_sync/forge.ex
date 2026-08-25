@@ -4,12 +4,15 @@ defmodule GitSync.Forge do
   GitHub and Forgejo clients. The engine talks to a connection through this
   module and never names a provider.
 
-  Authentication is deliberately outside the behaviour: Forgejo login runs
-  through oidcc and the GitHub token is obtained by hand, and neither is a
-  per-repository operation.
+  Login is deliberately outside the behaviour: Forgejo runs through oidcc and
+  the GitHub token is obtained by hand, and neither is a per-repository
+  operation. Renewing a credential that is already held is here, because every
+  call below needs one that still works.
   """
 
   alias GitSync.Connection
+  alias GitSync.Connections
+  alias GitSync.Forge.Token
 
   @type repo :: %{full_name: String.t(), clone_url: String.t(), private: boolean() | nil}
   @type headers :: [{String.t(), String.t()}]
@@ -19,6 +22,9 @@ defmodule GitSync.Forge do
   @callback create_webhook(Connection.t(), String.t(), String.t(), String.t()) ::
               {:ok, term} | {:error, term}
   @callback verify_webhook(Connection.t(), headers, binary, String.t()) :: :ok | {:error, term}
+  @callback refresh(Connection.t()) :: {:ok, Token.t()} | {:error, term}
+
+  @names %{forgejo: "Forgejo", github: "GitHub", tangled: "Tangled"}
 
   @impls %{
     forgejo: GitSync.Forgejo.Client,
@@ -31,15 +37,41 @@ defmodule GitSync.Forge do
   """
   def impl(%Connection{kind: kind}), do: Map.fetch!(@impls, kind)
 
-  def list_repos(%Connection{} = connection),
-    do: impl(connection).list_repos(connection)
+  @doc """
+  The connection with a working access token, renewing it first if the one on
+  hand is spent.
+  """
+  def fresh(%Connection{} = connection) do
+    case Connections.token(connection) do
+      nil -> {:ok, connection}
+      token -> if Token.spent?(token), do: renew(connection, token), else: {:ok, connection}
+    end
+  end
+
+  def list_repos(%Connection{} = connection) do
+    with {:ok, connection} <- fresh(connection),
+         do: impl(connection).list_repos(connection)
+  end
 
   def clone_url(%Connection{} = connection, repo, mode),
     do: impl(connection).clone_url(connection, repo, mode)
 
-  def create_webhook(%Connection{} = connection, repo, url, secret),
-    do: impl(connection).create_webhook(connection, repo, url, secret)
+  def create_webhook(%Connection{} = connection, repo, url, secret) do
+    with {:ok, connection} <- fresh(connection),
+         do: impl(connection).create_webhook(connection, repo, url, secret)
+  end
 
   def verify_webhook(%Connection{} = connection, headers, body, secret),
     do: impl(connection).verify_webhook(connection, headers, body, secret)
+
+  defp renew(%Connection{} = connection, %Token{refresh: nil}) do
+    {:error,
+     "#{@names[connection.kind]} must be reconnected: its access token has expired and no " <>
+       "refresh token was stored."}
+  end
+
+  defp renew(%Connection{} = connection, %Token{}) do
+    with {:ok, token} <- impl(connection).refresh(connection),
+         do: Connections.store_token(connection, token)
+  end
 end

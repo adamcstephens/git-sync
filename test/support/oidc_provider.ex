@@ -59,6 +59,7 @@ defmodule GitSync.OidcProvider do
       response_types_supported: ~w(code),
       subject_types_supported: ~w(public),
       id_token_signing_alg_values_supported: ~w(RS256),
+      grant_types_supported: ~w(authorization_code refresh_token),
       code_challenge_methods_supported: ~w(S256 plain)
     })
   end
@@ -84,12 +85,35 @@ defmodule GitSync.OidcProvider do
   end
 
   post "/token" do
+    if conn.body_params["grant_type"] == "refresh_token",
+      do: refresh(conn),
+      else: authorization_code(conn)
+  end
+
+  defp refresh(conn) do
+    if conn.body_params["refresh_token"] == "forgejo-refresh-token" do
+      json(conn, %{
+        access_token: "forgejo-renewed-token",
+        refresh_token: "forgejo-next-refresh-token",
+        expires_in: 3600,
+        token_type: "Bearer",
+        id_token: id_token(),
+        scope: "openid profile email"
+      })
+    else
+      conn |> put_status(400) |> json(%{error: "invalid_grant"})
+    end
+  end
+
+  defp authorization_code(conn) do
     verifier = conn.body_params["code_verifier"]
     Agent.update(@state, &Map.put(&1, :code_verifier, verifier))
 
     if verified_challenge?(verifier) do
       json(conn, %{
         access_token: "forgejo-access-token",
+        refresh_token: "forgejo-refresh-token",
+        expires_in: 3600,
         token_type: "Bearer",
         id_token: id_token(),
         scope: "openid profile email"
@@ -123,9 +147,10 @@ defmodule GitSync.OidcProvider do
       "sub" => get(:subject),
       "aud" => get(:client_id),
       "exp" => now + 300,
-      "iat" => now,
-      "nonce" => get(:nonce)
+      "iat" => now
     }
+
+    claims = Map.merge(claims, nonce_claim())
 
     {_modules, token} =
       get(:jwk)
@@ -133,6 +158,13 @@ defmodule GitSync.OidcProvider do
       |> JOSE.JWS.compact()
 
     token
+  end
+
+  defp nonce_claim do
+    case Agent.get(@state, & &1[:nonce]) do
+      nil -> %{}
+      nonce -> %{"nonce" => nonce}
+    end
   end
 
   defp get(key), do: Agent.get(@state, &Map.fetch!(&1, key))

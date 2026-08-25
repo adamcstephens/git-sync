@@ -2,11 +2,12 @@ defmodule GitSyncWeb.GithubControllerTest do
   use GitSyncWeb.ConnCase
 
   alias GitSync.Connections
+  alias GitSync.Forge.Token
 
   setup :configure_forgejo
 
   setup %{conn: conn, connection: connection} do
-    {:ok, _connection} = Connections.record_login(connection, "alice", "tok")
+    {:ok, _connection} = Connections.record_login(connection, "alice", Token.new("tok", nil, nil))
     Req.Test.stub(GitSync.Http, fn req_conn -> Req.Test.json(req_conn, []) end)
 
     %{conn: init_test_session(conn, %{"operator" => "alice"})}
@@ -107,7 +108,7 @@ defmodule GitSyncWeb.GithubControllerTest do
     setup :enable_github
 
     setup %{github: github} do
-      {:ok, github} = Connections.store_token(github, "gho_tok")
+      {:ok, github} = Connections.store_token(github, Token.new("gho_tok", nil, nil))
 
       %{github: github}
     end

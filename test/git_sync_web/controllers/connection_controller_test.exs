@@ -1,10 +1,13 @@
 defmodule GitSyncWeb.ConnectionControllerTest do
   use GitSyncWeb.ConnCase
 
+  alias GitSync.Forge.Token
+
   setup :configure_forgejo
 
   setup %{conn: conn, connection: connection} do
-    {:ok, _connection} = GitSync.Connections.record_login(connection, "alice", "tok")
+    {:ok, _connection} =
+      GitSync.Connections.record_login(connection, "alice", Token.new("tok", nil, nil))
 
     %{conn: init_test_session(conn, %{"operator" => "alice"})}
   end

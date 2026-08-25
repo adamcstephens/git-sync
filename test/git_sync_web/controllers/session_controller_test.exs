@@ -2,6 +2,7 @@ defmodule GitSyncWeb.SessionControllerTest do
   use GitSyncWeb.ConnCase
 
   alias GitSync.Connections
+  alias GitSync.Forge.Token
   alias GitSync.Forgejo.Provider
   alias GitSync.OidcProvider
 
@@ -64,6 +65,8 @@ defmodule GitSyncWeb.SessionControllerTest do
       connection = Connections.forgejo()
       assert connection.operator == "alice"
       assert connection.token == "forgejo-access-token"
+      assert connection.refresh_token == "forgejo-refresh-token"
+      assert DateTime.diff(connection.token_expires_at, DateTime.utc_now()) > 3500
     end
 
     test "the token request proves possession of the PKCE verifier", %{conn: conn} do
@@ -76,7 +79,8 @@ defmodule GitSyncWeb.SessionControllerTest do
     end
 
     test "a second Forgejo user is refused", %{conn: conn, connection: connection} do
-      {:ok, _connection} = Connections.record_login(connection, "bob", "bobs-token")
+      {:ok, _connection} =
+        Connections.record_login(connection, "bob", Token.new("bobs-token", nil, nil))
 
       conn = sign_in(conn)
 

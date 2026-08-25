@@ -6,6 +6,7 @@ defmodule GitSync.Connections do
   import Ecto.Query
 
   alias GitSync.Connection
+  alias GitSync.Forge.Token
   alias GitSync.Repo
 
   def list, do: Repo.all(from c in Connection, order_by: [asc: c.id])
@@ -61,11 +62,25 @@ defmodule GitSync.Connections do
   end
 
   @doc """
+  The stored credential, or `nil` for a connection nobody has signed in to.
+  """
+  def token(%Connection{token: nil}), do: nil
+
+  def token(%Connection{} = connection) do
+    %Token{
+      access: connection.token,
+      refresh: connection.refresh_token,
+      expires_at: connection.token_expires_at,
+      subject: connection.subject
+    }
+  end
+
+  @doc """
   Stores a credential obtained over OAuth.
   """
   def store_token(%Connection{} = connection, token) do
     connection
-    |> Ecto.Changeset.change(token: token)
+    |> Ecto.Changeset.change(token_attrs(token))
     |> Repo.update()
   end
 
@@ -78,13 +93,24 @@ defmodule GitSync.Connections do
   Records a completed login. The first Forgejo user to sign in claims the
   operator seat; everyone after them is refused.
   """
-  def record_login(%Connection{operator: seat} = connection, operator, token)
+  def record_login(%Connection{operator: seat} = connection, operator, %Token{} = token)
       when is_nil(seat) or seat == operator do
     connection
-    |> Ecto.Changeset.change(operator: operator, token: token)
+    |> Ecto.Changeset.change([{:operator, operator} | token_attrs(token)])
     |> Repo.update()
   end
 
-  def record_login(%Connection{operator: seat}, _operator, _token),
+  def record_login(%Connection{operator: seat}, _operator, %Token{}),
     do: {:error, {:claimed_by, seat}}
+
+  defp token_attrs(nil),
+    do: [token: nil, refresh_token: nil, token_expires_at: nil, subject: nil]
+
+  defp token_attrs(%Token{} = token),
+    do: [
+      token: token.access,
+      refresh_token: token.refresh,
+      token_expires_at: token.expires_at,
+      subject: token.subject
+    ]
 end

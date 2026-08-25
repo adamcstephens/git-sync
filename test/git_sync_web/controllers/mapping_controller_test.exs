@@ -2,6 +2,7 @@ defmodule GitSyncWeb.MappingControllerTest do
   use GitSyncWeb.ConnCase
 
   alias GitSync.Connection
+  alias GitSync.Forge.Token
   alias GitSync.Mapping
   alias GitSync.Mappings
   alias GitSync.Repo
@@ -13,7 +14,9 @@ defmodule GitSyncWeb.MappingControllerTest do
   setup :configure_forgejo
 
   setup %{conn: conn, connection: connection} do
-    {:ok, forgejo} = GitSync.Connections.record_login(connection, "alice", "tok")
+    {:ok, forgejo} =
+      GitSync.Connections.record_login(connection, "alice", Token.new("tok", nil, nil))
+
     github = Repo.insert!(%Connection{kind: :github, base_url: "https://github.com", token: "t"})
 
     root = Path.join(System.tmp_dir!(), "git-sync-#{System.unique_integer([:positive])}")

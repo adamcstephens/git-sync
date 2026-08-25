@@ -95,6 +95,25 @@ defmodule GitSync.MirrorTest do
 
       refute run.log =~ "s3cret"
     end
+
+    test "fails the run when a credential cannot be renewed", %{forge: forge} do
+      mapping = mapping(forge)
+
+      {:ok, source} =
+        Repo.update(
+          Ecto.Changeset.change(mapping.source_connection,
+            token: "expired",
+            token_expires_at:
+              DateTime.utc_now() |> DateTime.add(-60) |> DateTime.truncate(:second)
+          )
+        )
+
+      {:error, run} = Mirror.sync(%{mapping | source_connection: source})
+
+      assert run.status == :failure
+      assert run.log =~ "Forgejo must be reconnected"
+      assert run.finished_at
+    end
   end
 
   describe "auth_args/1" do

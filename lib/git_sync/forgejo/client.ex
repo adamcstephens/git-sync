@@ -60,6 +60,9 @@ defmodule GitSync.Forgejo.Client do
   end
 
   @impl GitSync.Forge
+  defdelegate refresh(connection), to: GitSync.Forgejo.Oidc
+
+  @impl GitSync.Forge
   def verify_webhook(%Connection{}, headers, body, secret),
     do: Webhook.verify_hmac_sha256(headers, body, secret, @signature_headers)
 

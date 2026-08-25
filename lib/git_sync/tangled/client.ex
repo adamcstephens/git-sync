@@ -23,4 +23,7 @@ defmodule GitSync.Tangled.Client do
 
   @impl GitSync.Forge
   def verify_webhook(%Connection{}, _headers, _body, _secret), do: {:error, :unsupported}
+
+  @impl GitSync.Forge
+  def refresh(%Connection{}), do: {:error, :unsupported}
 end

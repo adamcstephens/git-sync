@@ -2,6 +2,7 @@ defmodule GitSync.Github.OAuthTest do
   use ExUnit.Case, async: true
 
   alias GitSync.Connection
+  alias GitSync.Forge.Token
   alias GitSync.Github.OAuth
 
   @connection %Connection{
@@ -47,15 +48,43 @@ defmodule GitSync.Github.OAuthTest do
                "redirect_uri" => "https://sync.test/auth/github/callback"
              } = URI.decode_query(body)
 
-      Req.Test.json(conn, %{"access_token" => "gho_tok", "token_type" => "bearer"})
+      Req.Test.json(conn, %{
+        "access_token" => "gho_tok",
+        "token_type" => "bearer",
+        "refresh_token" => "ghr_tok",
+        "expires_in" => 28_800
+      })
     end)
 
-    assert {:ok, "gho_tok"} =
+    assert {:ok, %Token{access: "gho_tok", refresh: "ghr_tok", expires_at: %DateTime{}}} =
              OAuth.exchange_code(
                @connection,
                "the-code",
                "https://sync.test/auth/github/callback"
              )
+  end
+
+  test "renews an expiring token with the refresh token" do
+    stub(fn conn ->
+      assert conn.request_path == "/login/oauth/access_token"
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+      assert %{
+               "client_id" => "cid",
+               "client_secret" => "secret",
+               "grant_type" => "refresh_token",
+               "refresh_token" => "ghr_old"
+             } = URI.decode_query(body)
+
+      Req.Test.json(conn, %{
+        "access_token" => "gho_new",
+        "refresh_token" => "ghr_new",
+        "expires_in" => 28_800
+      })
+    end)
+
+    assert {:ok, %Token{access: "gho_new", refresh: "ghr_new"}} =
+             OAuth.refresh(%{@connection | refresh_token: "ghr_old"})
   end
 
   test "reports the error GitHub describes" do

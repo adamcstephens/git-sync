@@ -18,21 +18,37 @@ defmodule GitSync.Mirror do
   def sync(%Mapping{} = mapping) do
     mapping = Repo.preload(mapping, [:source_connection, :destination_connection])
     run = start_run(mapping)
+
+    case renewed(mapping) do
+      {:ok, mapping} ->
+        {status, log, refs} = mirror(mapping)
+        finish_run(run, status, log, refs)
+
+      {:error, reason} ->
+        finish_run(run, :failure, "#{reason}", [])
+    end
+  end
+
+  defp renewed(%Mapping{} = mapping) do
+    with {:ok, source} <- Forge.fresh(mapping.source_connection),
+         {:ok, destination} <- Forge.fresh(mapping.destination_connection) do
+      {:ok, %{mapping | source_connection: source, destination_connection: destination}}
+    end
+  end
+
+  defp mirror(%Mapping{} = mapping) do
     {fetch_result, fetch_log} = fetch(mapping)
 
-    {status, log, refs} =
-      case fetch_result do
-        :error ->
-          {:failure, fetch_log, []}
+    case fetch_result do
+      :error ->
+        {:failure, fetch_log, []}
 
-        :ok ->
-          case push(mapping) do
-            {:ok, push_log, refs} -> {:success, fetch_log <> push_log, refs}
-            {:error, push_log} -> {:failure, fetch_log <> push_log, []}
-          end
-      end
-
-    finish_run(run, status, log, refs)
+      :ok ->
+        case push(mapping) do
+          {:ok, push_log, refs} -> {:success, fetch_log <> push_log, refs}
+          {:error, push_log} -> {:failure, fetch_log <> push_log, []}
+        end
+    end
   end
 
   @doc """

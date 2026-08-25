@@ -8,6 +8,7 @@ defmodule GitSync.Github.OAuth do
   """
 
   alias GitSync.Connection
+  alias GitSync.Forge.Token
 
   @scopes ["repo", "admin:repo_hook"]
 
@@ -31,21 +32,33 @@ defmodule GitSync.Github.OAuth do
   end
 
   def exchange_code(%Connection{} = connection, code, redirect_uri) do
+    token(connection,
+      code: code,
+      redirect_uri: redirect_uri
+    )
+  end
+
+  @doc """
+  Trades a refresh token for a fresh access token and its successor.
+  """
+  def refresh(%Connection{refresh_token: refresh_token} = connection) do
+    token(connection,
+      grant_type: "refresh_token",
+      refresh_token: refresh_token
+    )
+  end
+
+  defp token(%Connection{} = connection, grant) do
     request =
       GitSync.Http.request(
         url: web_url(connection.base_url, "/login/oauth/access_token"),
         headers: [accept: "application/json"],
-        form: [
-          client_id: connection.client_id,
-          client_secret: connection.client_secret,
-          code: code,
-          redirect_uri: redirect_uri
-        ]
+        form: [client_id: connection.client_id, client_secret: connection.client_secret] ++ grant
       )
 
     case Req.post(request) do
-      {:ok, %Req.Response{status: 200, body: %{"access_token" => token}}} ->
-        {:ok, token}
+      {:ok, %Req.Response{status: 200, body: %{"access_token" => access} = body}} ->
+        {:ok, Token.new(access, body["refresh_token"], body["expires_in"])}
 
       {:ok, %Req.Response{status: 200, body: %{"error_description" => description}}} ->
         {:error, description}

@@ -33,7 +33,7 @@ defmodule GitSyncWeb.SessionController do
       ) do
     operator = Oidc.operator(claims)
 
-    case Connections.record_login(Connections.forgejo(), operator, token.access.token) do
+    case Connections.record_login(Connections.forgejo(), operator, Oidc.token(token)) do
       {:ok, _connection} ->
         conn
         |> put_flash(:info, "Signed in as #{operator}.")
