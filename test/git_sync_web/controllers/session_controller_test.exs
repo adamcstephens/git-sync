@@ -41,6 +41,20 @@ defmodule GitSyncWeb.SessionControllerTest do
       assert byte_size(params["code_challenge"]) > 0
     end
 
+    test "the redirect URI follows the host the operator is using", %{conn: conn} do
+      for host <- ["localhost", "kale.v.robins.wtf"] do
+        params =
+          %{conn | host: host}
+          |> post(~p"/auth/forgejo")
+          |> redirected_to(302)
+          |> URI.parse()
+          |> Map.fetch!(:query)
+          |> URI.decode_query()
+
+        assert params["redirect_uri"] == "http://#{host}/auth/forgejo/callback"
+      end
+    end
+
     test "a full code flow claims the operator seat and stores the token", %{conn: conn} do
       conn = sign_in(conn)
 

@@ -9,7 +9,7 @@ defmodule GitSyncWeb.SessionController do
     provider: Provider.name(),
     client_id: &Oidc.client_id/0,
     client_secret: &Oidc.client_secret/0,
-    redirect_uri: &__MODULE__.callback_url/0
+    redirect_uri: &__MODULE__.callback_url/1
   ]
 
   plug Oidcc.Plug.Authorize,
@@ -63,9 +63,15 @@ defmodule GitSyncWeb.SessionController do
   end
 
   @doc """
-  The redirect URI registered with Forgejo, as an absolute URL.
+  The redirect URI, built from the host the request actually arrived on rather
+  than the endpoint's configured host, so a server reachable under more than one
+  name completes the flow under the name in the operator's address bar.
   """
-  def callback_url, do: url(~p"/auth/forgejo/callback")
+  def callback_url(conn) do
+    uri = %URI{scheme: to_string(conn.scheme), host: conn.host, port: conn.port}
+
+    url(uri, ~p"/auth/forgejo/callback")
+  end
 
   defp failed(conn, reason) do
     conn
