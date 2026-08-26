@@ -9,13 +9,20 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ ];
 
+      flake.nixosModules.default = ./nix/module.nix;
+
       systems = [
         "x86_64-linux"
         "aarch64-darwin"
       ];
 
       perSystem =
-        { lib, pkgs, ... }:
+        {
+          config,
+          lib,
+          pkgs,
+          ...
+        }:
         let
           beamPackages = pkgs.beamMinimal29Packages.overrideScope (
             _: prev: {
@@ -24,6 +31,17 @@
           );
         in
         {
+          packages.default = pkgs.callPackage ./nix/package.nix { };
+
+          checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            module = pkgs.testers.runNixOSTest (
+              import ./nix/test.nix {
+                module = ./nix/module.nix;
+                package = config.packages.default;
+              }
+            );
+          };
+
           devShells.default = pkgs.mkShell {
             packages = [
               beamPackages.erlang

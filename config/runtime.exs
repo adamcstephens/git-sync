@@ -81,15 +81,21 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
 
+  bind_address =
+    System.get_env("BIND_ADDRESS", "::")
+    |> String.to_charlist()
+    |> :inet.parse_address()
+    |> case do
+      {:ok, address} ->
+        address
+
+      {:error, :einval} ->
+        raise "environment variable BIND_ADDRESS is not a valid IP address"
+    end
+
   config :git_sync, GitSyncWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
-    http: [
-      # Enable IPv6 and bind on all interfaces.
-      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
-      # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0
-      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0}
-    ],
+    http: [ip: bind_address],
     secret_key_base: secret_key_base
 
   # ## SSL Support
