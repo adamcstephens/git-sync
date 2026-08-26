@@ -20,6 +20,21 @@ defmodule GitSync.Tangled.ClientTest do
              "git@knot.example:adam/git-sync"
   end
 
+  test "reads a repo on another knot through the appview all the same" do
+    assert Client.clone_url(@connection, "git.example.com/adam/git-sync", :read) ==
+             "https://knot.example/adam/git-sync"
+  end
+
+  test "writes a repo on another knot straight to that knot" do
+    assert Client.clone_url(@connection, "git.example.com/adam/git-sync", :write) ==
+             "git@git.example.com:adam/git-sync"
+  end
+
+  test "names the knot a repo lives on" do
+    assert Client.knot_host(@connection, "git.example.com/adam/git-sync") == "git.example.com"
+    assert Client.knot_host(@connection, "adam/git-sync") == nil
+  end
+
   test "falls back to the timer instead of webhooks" do
     assert {:error, :unsupported} =
              Client.create_webhook(@connection, "adam/git-sync", "https://s.example/h", "shh")

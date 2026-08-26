@@ -5,8 +5,8 @@ defmodule GitSync.Ssh do
   The key lives in an `ssh-agent` started for the invocation and reached
   through a socket in a private directory: it reaches `ssh-add` through the
   environment rather than a file, so it never lands on disk.
-  The host is verified against the connection's own `known_hosts`, holding
-  whatever `ssh-keyscan` reported for the knot.
+  The host is verified against a private `known_hosts` holding whatever
+  `ssh-keyscan` reported for the knot being pushed to.
   """
 
   alias GitSync.Connection
@@ -24,20 +24,21 @@ defmodule GitSync.Ssh do
 
   @doc """
   Runs `fun` with the environment that authenticates one git invocation
-  against `connection`, tearing the agent down afterwards.
+  against `connection`, verifying the host against `host_key`, and tears the
+  agent down afterwards.
 
   `fun` takes the environment and returns a `{status, output}` pair; the
   agent's paths are scrubbed from the output so they cannot reach a run log.
   A connection with no key runs the block with an empty environment.
   """
-  def with_agent(%Connection{ssh_key: key} = connection, fun) when is_binary(key) do
+  def with_agent(%Connection{ssh_key: key}, host_key, fun) when is_binary(key) do
     dir = private_dir()
 
     try do
       socket = Path.join(dir, "agent")
       known_hosts = Path.join(dir, "known_hosts")
 
-      write(known_hosts, connection.host_key)
+      write(known_hosts, host_key)
 
       case start_agent(socket) do
         {:ok, pid} ->
@@ -59,7 +60,7 @@ defmodule GitSync.Ssh do
     end
   end
 
-  def with_agent(%Connection{}, fun), do: fun.([])
+  def with_agent(%Connection{}, _host_key, fun), do: fun.([])
 
   @doc """
   Generates the keypair git-sync pushes with. The operator never sees the

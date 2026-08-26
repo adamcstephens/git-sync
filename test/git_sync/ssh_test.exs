@@ -2,7 +2,7 @@ defmodule GitSync.SshTest do
   use ExUnit.Case, async: true
 
   alias GitSync.Connection
-  alias GitSync.Knot
+  alias GitSync.KnotServer
   alias GitSync.Ssh
 
   setup do
@@ -24,18 +24,18 @@ defmodule GitSync.SshTest do
     }
   end
 
-  describe "with_agent/2" do
+  describe "with_agent/3" do
     test "loads the key into an agent the block can reach", context do
       %{connection: connection, fingerprint: fingerprint} = context
 
-      {:ok, identities} = Ssh.with_agent(connection, &ssh_add_list/1)
+      {:ok, identities} = Ssh.with_agent(connection, connection.host_key, &ssh_add_list/1)
 
       assert identities =~ fingerprint
     end
 
     test "verifies the host against a private known_hosts file", %{connection: connection} do
       {:ok, command} =
-        Ssh.with_agent(connection, fn env ->
+        Ssh.with_agent(connection, connection.host_key, fn env ->
           command = env(env, "GIT_SSH_COMMAND")
           known_hosts = option(command, "UserKnownHostsFile")
 
@@ -67,7 +67,7 @@ defmodule GitSync.SshTest do
 
     test "stops the agent when the block raises", %{connection: connection} do
       assert_raise RuntimeError, fn ->
-        Ssh.with_agent(connection, fn env ->
+        Ssh.with_agent(connection, connection.host_key, fn env ->
           send(self(), {:env, env})
           raise "boom"
         end)
@@ -79,7 +79,9 @@ defmodule GitSync.SshTest do
 
     test "keeps the agent's paths out of the block's output", %{connection: connection} do
       {:error, output} =
-        Ssh.with_agent(connection, fn env -> {:error, env(env, "SSH_AUTH_SOCK")} end)
+        Ssh.with_agent(connection, connection.host_key, fn env ->
+          {:error, env(env, "SSH_AUTH_SOCK")}
+        end)
 
       refute output =~ System.tmp_dir!()
     end
@@ -87,7 +89,10 @@ defmodule GitSync.SshTest do
     test "runs the block untouched for a connection with no key" do
       connection = %Connection{kind: :forgejo, base_url: "https://codeberg.org"}
 
-      assert {:ok, "[]"} == Ssh.with_agent(connection, fn env -> {:ok, "#{inspect(env)}"} end)
+      assert {:ok, "[]"} ==
+               Ssh.with_agent(connection, connection.host_key, fn env ->
+                 {:ok, "#{inspect(env)}"}
+               end)
     end
   end
 
@@ -104,16 +109,16 @@ defmodule GitSync.SshTest do
 
   describe "scan_host/2" do
     test "returns the keys the host offers" do
-      %{port: port, public: public} = Knot.serve()
+      %{port: port, public: public} = KnotServer.serve()
 
       assert {:ok, scanned} = Ssh.scan_host("127.0.0.1", port)
 
       assert scanned =~ "[127.0.0.1]:#{port} ssh-ed25519 "
-      assert Ssh.fingerprints(scanned) == [Knot.fingerprint(public)]
+      assert Ssh.fingerprints(scanned) == [KnotServer.fingerprint(public)]
     end
 
     test "reports a host that offers nothing" do
-      assert {:error, reason} = Ssh.scan_host("127.0.0.1", Knot.refuse())
+      assert {:error, reason} = Ssh.scan_host("127.0.0.1", KnotServer.refuse())
 
       assert reason =~ "no host keys"
     end
@@ -121,14 +126,14 @@ defmodule GitSync.SshTest do
 
   describe "fingerprints/1" do
     test "summarises every key in a known_hosts blob" do
-      first = Knot.serve()
-      second = Knot.serve()
+      first = KnotServer.serve()
+      second = KnotServer.serve()
 
       {:ok, scanned} = Ssh.scan_host("127.0.0.1", first.port)
       {:ok, more} = Ssh.scan_host("127.0.0.1", second.port)
 
       assert Ssh.fingerprints(scanned <> more) ==
-               [Knot.fingerprint(first.public), Knot.fingerprint(second.public)]
+               [KnotServer.fingerprint(first.public), KnotServer.fingerprint(second.public)]
     end
 
     test "has nothing to say about a blank or unreadable host key" do
@@ -147,7 +152,7 @@ defmodule GitSync.SshTest do
 
   defp captured_env(connection) do
     {:ok, ""} =
-      Ssh.with_agent(connection, fn env ->
+      Ssh.with_agent(connection, connection.host_key, fn env ->
         send(self(), {:env, env})
         {:ok, ""}
       end)

@@ -4,6 +4,8 @@ defmodule GitSync.MappingTest do
   alias GitSync.Connection
   alias GitSync.Mapping
 
+  @repo_message "must look like owner/name, optionally prefixed with a knot host"
+
   setup do
     {:ok, source} =
       Repo.insert(
@@ -43,14 +45,24 @@ defmodule GitSync.MappingTest do
   test "rejects a repository that is not owner/name", context do
     changeset = Mapping.changeset(%Mapping{}, %{attrs(context) | source_repo: "git-sync"})
 
-    assert %{source_repo: ["must look like owner/name"]} = errors_on(changeset)
+    assert %{source_repo: [@repo_message]} = errors_on(changeset)
+  end
+
+  test "takes a knot host in front of the owner", context do
+    changeset =
+      Mapping.changeset(%Mapping{}, %{
+        attrs(context)
+        | destination_repo: "git.example.com/adam/git-sync"
+      })
+
+    assert changeset.valid?
   end
 
   test "rejects a destination repository that is not owner/name", context do
     changeset =
       Mapping.changeset(%Mapping{}, %{attrs(context) | destination_repo: "adam/git sync"})
 
-    assert %{destination_repo: ["must look like owner/name"]} = errors_on(changeset)
+    assert %{destination_repo: [@repo_message]} = errors_on(changeset)
   end
 
   test "allows one source to have several destinations", context do

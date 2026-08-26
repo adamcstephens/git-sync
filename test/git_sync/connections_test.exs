@@ -3,7 +3,7 @@ defmodule GitSync.ConnectionsTest do
 
   alias GitSync.Connections
   alias GitSync.Forge.Token
-  alias GitSync.Knot
+  alias GitSync.KnotServer
   alias GitSync.Ssh
 
   @attrs %{
@@ -66,7 +66,7 @@ defmodule GitSync.ConnectionsTest do
 
   describe "tangled" do
     setup do
-      %{public: public} = Knot.serve()
+      %{public: public} = KnotServer.serve()
 
       %{host_public: public}
     end
@@ -85,7 +85,7 @@ defmodule GitSync.ConnectionsTest do
     test "the scanned keys are the ones the host actually offers", %{host_public: public} do
       {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
 
-      assert Ssh.fingerprints(connection.host_key) == [Knot.fingerprint(public)]
+      assert Ssh.fingerprints(connection.host_key) == [KnotServer.fingerprint(public)]
     end
 
     test "configuring twice rescans and updates the single row" do
@@ -97,7 +97,7 @@ defmodule GitSync.ConnectionsTest do
     end
 
     test "a host that cannot be scanned is an error on the URL" do
-      Knot.refuse()
+      KnotServer.refuse()
 
       assert {:error, changeset} =
                Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})

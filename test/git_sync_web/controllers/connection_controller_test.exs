@@ -3,7 +3,7 @@ defmodule GitSyncWeb.ConnectionControllerTest do
 
   alias GitSync.Connections
   alias GitSync.Forge.Token
-  alias GitSync.Knot
+  alias GitSync.KnotServer
 
   setup :configure_forgejo
 
@@ -41,7 +41,7 @@ defmodule GitSyncWeb.ConnectionControllerTest do
     setup %{conn: conn} do
       Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 401, ""))
 
-      %{conn: conn, knot: Knot.serve()}
+      %{conn: conn, knot: KnotServer.serve()}
     end
 
     test "offers a form for the knot URL and nothing to paste", %{conn: conn} do
@@ -58,11 +58,12 @@ defmodule GitSyncWeb.ConnectionControllerTest do
       assert redirected_to(saved) == ~p"/connections"
       assert Connections.tangled().base_url == "https://127.0.0.1"
 
-      assert html_response(get(conn, ~p"/connections"), 200) =~ Knot.fingerprint(knot.public)
+      assert html_response(get(conn, ~p"/connections"), 200) =~
+               KnotServer.fingerprint(knot.public)
     end
 
     test "a knot that cannot be reached re-renders the page", %{conn: conn} do
-      Knot.refuse()
+      KnotServer.refuse()
 
       conn = post(conn, ~p"/connections/tangled", %{"connection" => knot_params()})
 

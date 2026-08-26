@@ -2,6 +2,7 @@ defmodule GitSync.MirrorTest do
   use GitSync.DataCase
 
   alias GitSync.Connection
+  alias GitSync.Knot
   alias GitSync.Mapping
   alias GitSync.Mirror
 
@@ -103,6 +104,32 @@ defmodule GitSync.MirrorTest do
       assert run.log =~ "Could not resolve hostname knot.invalid"
       refute run.log =~ "PRIVATE KEY"
       refute run.log =~ "git-sync-ssh"
+    end
+
+    test "pushes to the knot a repo names rather than the connection's", %{forge: forge} do
+      mapping = mapping(forge)
+
+      {:ok, destination} =
+        Repo.update(
+          Ecto.Changeset.change(mapping.destination_connection,
+            kind: :tangled,
+            base_url: "https://tangled.org",
+            ssh_key: ssh_key(forge),
+            host_key: "tangled.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdefault"
+          )
+        )
+
+      {:ok, mapping} =
+        Repo.update(Ecto.Changeset.change(mapping, destination_repo: "git.invalid/adam/git-sync"))
+
+      pinned = "git.invalid ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIpinned"
+      Repo.insert!(%Knot{connection_id: destination.id, host: "git.invalid", host_key: pinned})
+
+      {:error, run} = Mirror.sync(%{mapping | destination_connection: destination})
+
+      assert run.status == :failure
+      assert run.log =~ "git push --mirror --force --porcelain git@git.invalid:adam/git-sync"
+      assert run.log =~ "Could not resolve hostname git.invalid"
     end
 
     test "keeps the token out of the log and the workspace", %{forge: forge} do

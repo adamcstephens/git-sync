@@ -1,4 +1,4 @@
-defmodule GitSync.Knot do
+defmodule GitSync.KnotServer do
   @moduledoc """
   A throwaway SSH server for tests that need a host to scan keys from.
 

@@ -7,6 +7,7 @@ defmodule GitSync.Mirror do
   alias GitSync.Connection
   alias GitSync.Forge
   alias GitSync.Git
+  alias GitSync.Knots
   alias GitSync.Mapping
   alias GitSync.Repo
   alias GitSync.Run
@@ -69,11 +70,11 @@ defmodule GitSync.Mirror do
     workspace = workspace(mapping)
 
     if File.dir?(workspace) do
-      git(["remote", "update", "--prune"], connection, cd: workspace)
+      git(["remote", "update", "--prune"], connection, mapping.source_repo, cd: workspace)
     else
       File.mkdir_p!(Path.dirname(workspace))
       url = Forge.clone_url(connection, mapping.source_repo, :read)
-      git(["clone", "--mirror", url, workspace], connection)
+      git(["clone", "--mirror", url, workspace], connection, mapping.source_repo)
     end
   end
 
@@ -81,19 +82,25 @@ defmodule GitSync.Mirror do
     url = Forge.clone_url(connection, mapping.destination_repo, :write)
     args = ["push", "--mirror", "--force", "--porcelain", url]
 
-    case git(args, connection, cd: workspace(mapping), output: true) do
+    case git(args, connection, mapping.destination_repo, cd: workspace(mapping), output: true) do
       {:ok, log, output} -> {:ok, log, pushed_refs(output)}
       {:error, log, _output} -> {:error, log}
     end
   end
 
-  defp git(args, connection, opts \\ []) do
+  defp git(args, connection, repo, opts \\ []) do
     {output?, opts} = Keyword.pop(opts, :output, false)
 
     {result, output} =
-      Ssh.with_agent(connection, fn env ->
-        Git.run(auth_args(connection) ++ args, Keyword.put(opts, :env, env))
-      end)
+      case Knots.host_key(connection, repo) do
+        {:ok, host_key} ->
+          Ssh.with_agent(connection, host_key, fn env ->
+            Git.run(auth_args(connection) ++ args, Keyword.put(opts, :env, env))
+          end)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
 
     log = Enum.join(["$ git" | args], " ") <> "\n" <> output
 

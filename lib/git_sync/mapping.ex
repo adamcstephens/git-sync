@@ -11,8 +11,8 @@ defmodule GitSync.Mapping do
   alias GitSync.Connection
   alias GitSync.Run
 
-  @repo_format ~r{\A[^\s/]+/[^\s/]+\z}
-  @repo_message "must look like owner/name"
+  @repo_format ~r{\A([^\s/]+/)?[^\s/]+/[^\s/]+\z}
+  @repo_message "must look like owner/name, optionally prefixed with a knot host"
 
   schema "mappings" do
     field :source_repo, :string
