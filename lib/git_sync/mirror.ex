@@ -14,6 +14,8 @@ defmodule GitSync.Mirror do
   alias GitSync.Runs
   alias GitSync.Ssh
 
+  @refspecs ["refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"]
+
   @doc """
   Mirrors one mapping, recording the attempt as a `Run`.
   """
@@ -48,7 +50,7 @@ defmodule GitSync.Mirror do
       :ok ->
         case push(mapping) do
           {:ok, push_log, refs} -> {:success, fetch_log <> push_log, refs}
-          {:error, push_log} -> {:failure, fetch_log <> push_log, []}
+          {:error, push_log, refs} -> {:failure, fetch_log <> push_log, refs}
         end
     end
   end
@@ -80,11 +82,11 @@ defmodule GitSync.Mirror do
 
   defp push(%Mapping{destination_connection: connection} = mapping) do
     url = Forge.clone_url(connection, mapping.destination_repo, :write)
-    args = ["push", "--mirror", "--force", "--porcelain", url]
+    args = ["push", "--prune", "--force", "--porcelain", url | @refspecs]
 
     case git(args, connection, mapping.destination_repo, cd: workspace(mapping), output: true) do
       {:ok, log, output} -> {:ok, log, pushed_refs(output)}
-      {:error, log, _output} -> {:error, log}
+      {:error, log, output} -> {:error, log, pushed_refs(output)}
     end
   end
 
@@ -112,8 +114,11 @@ defmodule GitSync.Mirror do
     |> String.split("\n", trim: true)
     |> Enum.flat_map(fn line ->
       case String.split(line, "\t") do
-        [flag, refs, _summary] when flag != "=" -> [refs |> String.split(":") |> List.last()]
-        _ -> []
+        [flag, refs, _summary] when flag not in ["=", "!"] ->
+          [refs |> String.split(":") |> List.last()]
+
+        _ ->
+          []
       end
     end)
   end

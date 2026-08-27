@@ -73,6 +73,38 @@ defmodule GitSync.MirrorTest do
       refute "refs/heads/doomed" in refs(mapping_destination(forge))
     end
 
+    test "leaves refs the destination reserves behind", %{
+      forge: forge,
+      source: source,
+      destination: destination
+    } do
+      mapping = mapping(forge)
+      git!(["update-ref", "refs/pull/1/head", "refs/heads/main"], source)
+      git!(["tag", "v1", "refs/heads/main"], source)
+
+      {:ok, run} = Mirror.sync(mapping)
+
+      assert run.status == :success
+      assert refs(destination) == ["refs/heads/main", "refs/tags/v1"]
+      refute "refs/pull/1/head" in run.refs_pushed
+    end
+
+    test "records the refs that landed when another ref is rejected", %{
+      forge: forge,
+      source: source,
+      destination: destination
+    } do
+      mapping = mapping(forge)
+      git!(["branch", "blocked"], source)
+      reject_ref(destination, "refs/heads/blocked")
+
+      {:error, run} = Mirror.sync(mapping)
+
+      assert run.status == :failure
+      assert run.refs_pushed == ["refs/heads/main"]
+      assert run.log =~ "blocked is not welcome here"
+    end
+
     test "records the git output when the source is unreachable", %{forge: forge} do
       mapping = mapping(forge, source_repo: "adam/missing.git")
 
@@ -100,7 +132,7 @@ defmodule GitSync.MirrorTest do
       {:error, run} = Mirror.sync(%{mapping | destination_connection: destination})
 
       assert run.status == :failure
-      assert run.log =~ "git push --mirror --force --porcelain git@knot.invalid:"
+      assert run.log =~ "git push --prune --force --porcelain git@knot.invalid:"
       assert run.log =~ "Could not resolve hostname knot.invalid"
       refute run.log =~ "PRIVATE KEY"
       refute run.log =~ "git-sync-ssh"
@@ -128,7 +160,7 @@ defmodule GitSync.MirrorTest do
       {:error, run} = Mirror.sync(%{mapping | destination_connection: destination})
 
       assert run.status == :failure
-      assert run.log =~ "git push --mirror --force --porcelain git@git.invalid:adam/git-sync"
+      assert run.log =~ "git push --prune --force --porcelain git@git.invalid:adam/git-sync"
       assert run.log =~ "Could not resolve hostname git.invalid"
     end
 
@@ -239,6 +271,20 @@ defmodule GitSync.MirrorTest do
     git!(["add", file], checkout)
     git!(["commit", "--message", "add " <> file], checkout)
     git!(["push", "origin", "main"], checkout)
+  end
+
+  defp reject_ref(bare, ref) do
+    hook = Path.join(bare, "hooks/update")
+
+    File.write!(hook, """
+    #!/usr/bin/env sh
+    if [ "$1" = "#{ref}" ]; then
+      echo "$1 is not welcome here" >&2
+      exit 1
+    fi
+    """)
+
+    File.chmod!(hook, 0o755)
   end
 
   defp refs(repo) do
