@@ -6,6 +6,7 @@ defmodule GitSyncWeb.ConnectionController do
   alias GitSync.Connection
   alias GitSync.Connections
   alias GitSync.Forge
+  alias GitSync.Knots
   alias GitSync.Ssh
 
   def index(conn, _params), do: render_index(conn)
@@ -29,8 +30,9 @@ defmodule GitSyncWeb.ConnectionController do
           github_repos: github_repos(github),
           github_form: form(Connection.oauth_changeset(%Connection{}, %{})),
           tangled: tangled,
-          tangled_fingerprints: fingerprints(tangled),
-          tangled_form: form(Connection.changeset(tangled || %Connection{}, %{}))
+          tangled_knots: knots(tangled),
+          tangled_repos: tangled_repos(tangled),
+          tangled_form: form(Connection.tangled_changeset(tangled || %Connection{}, %{}))
         ],
         overrides
       )
@@ -42,8 +44,15 @@ defmodule GitSyncWeb.ConnectionController do
 
   def form(changeset), do: to_form(changeset)
 
-  defp fingerprints(%Connection{host_key: host_key}), do: Ssh.fingerprints(host_key)
-  defp fingerprints(nil), do: []
+  defp knots(%Connection{} = tangled) do
+    for knot <- Knots.list(tangled),
+        do: %{host: knot.host, fingerprints: Ssh.fingerprints(knot.host_key)}
+  end
+
+  defp knots(nil), do: []
+
+  defp tangled_repos(%Connection{} = tangled), do: Forge.list_repos(tangled)
+  defp tangled_repos(nil), do: nil
 
   defp github_repos(%Connection{token: token} = github) when is_binary(token),
     do: Forge.list_repos(github)

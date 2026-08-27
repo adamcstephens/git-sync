@@ -41,7 +41,6 @@ defmodule GitSync.ConnectionTest do
         kind: :tangled,
         base_url: "https://knot.example.com",
         ssh_key: "-----BEGIN OPENSSH PRIVATE KEY-----",
-        host_key: "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample",
         public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
       })
 

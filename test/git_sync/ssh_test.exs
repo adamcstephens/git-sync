@@ -17,25 +17,26 @@ defmodule GitSync.SshTest do
       connection: %Connection{
         kind: :tangled,
         base_url: "https://knot.example.com",
-        ssh_key: File.read!(key),
-        host_key: "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
+        ssh_key: File.read!(key)
       },
       fingerprint: fingerprint(key <> ".pub")
     }
   end
 
+  @host_key "knot.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
+
   describe "with_agent/3" do
     test "loads the key into an agent the block can reach", context do
       %{connection: connection, fingerprint: fingerprint} = context
 
-      {:ok, identities} = Ssh.with_agent(connection, connection.host_key, &ssh_add_list/1)
+      {:ok, identities} = Ssh.with_agent(connection, @host_key, &ssh_add_list/1)
 
       assert identities =~ fingerprint
     end
 
     test "verifies the host against a private known_hosts file", %{connection: connection} do
       {:ok, command} =
-        Ssh.with_agent(connection, connection.host_key, fn env ->
+        Ssh.with_agent(connection, @host_key, fn env ->
           command = env(env, "GIT_SSH_COMMAND")
           known_hosts = option(command, "UserKnownHostsFile")
 
@@ -47,7 +48,7 @@ defmodule GitSync.SshTest do
       assert command =~ "GlobalKnownHostsFile=/dev/null"
 
       assert_received {:known_hosts, contents, %File.Stat{mode: mode}}
-      assert contents == connection.host_key <> "\n"
+      assert contents == @host_key <> "\n"
       assert Bitwise.band(mode, 0o777) == 0o600
     end
 
@@ -67,7 +68,7 @@ defmodule GitSync.SshTest do
 
     test "stops the agent when the block raises", %{connection: connection} do
       assert_raise RuntimeError, fn ->
-        Ssh.with_agent(connection, connection.host_key, fn env ->
+        Ssh.with_agent(connection, @host_key, fn env ->
           send(self(), {:env, env})
           raise "boom"
         end)
@@ -79,7 +80,7 @@ defmodule GitSync.SshTest do
 
     test "keeps the agent's paths out of the block's output", %{connection: connection} do
       {:error, output} =
-        Ssh.with_agent(connection, connection.host_key, fn env ->
+        Ssh.with_agent(connection, @host_key, fn env ->
           {:error, env(env, "SSH_AUTH_SOCK")}
         end)
 
@@ -90,7 +91,7 @@ defmodule GitSync.SshTest do
       connection = %Connection{kind: :forgejo, base_url: "https://codeberg.org"}
 
       assert {:ok, "[]"} ==
-               Ssh.with_agent(connection, connection.host_key, fn env ->
+               Ssh.with_agent(connection, @host_key, fn env ->
                  {:ok, "#{inspect(env)}"}
                end)
     end
@@ -152,7 +153,7 @@ defmodule GitSync.SshTest do
 
   defp captured_env(connection) do
     {:ok, ""} =
-      Ssh.with_agent(connection, connection.host_key, fn env ->
+      Ssh.with_agent(connection, @host_key, fn env ->
         send(self(), {:env, env})
         {:ok, ""}
       end)

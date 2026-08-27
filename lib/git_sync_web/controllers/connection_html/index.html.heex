@@ -59,33 +59,58 @@
   <.header>
     Tangled
     <:subtitle>
-      A knot speaks plain git. git-sync scans the knot for its host keys and
-      generates the key it pushes with.
+      Repositories are public atproto records, so git-sync lists them from the
+      account that owns them. Pushing needs a key each knot has been given.
     </:subtitle>
   </.header>
 
-  <.form for={@tangled_form} id="tangled-form" action={~p"/connections/tangled"}>
+  <.form for={@tangled_form} id="tangled-form" action={~p"/connections/tangled"} method="post">
+    <.input field={@tangled_form[:handle]} label="Handle or DID" placeholder="alice.example.com" />
     <.input
       field={@tangled_form[:base_url]}
-      label="Knot URL"
-      placeholder="https://knot.example.com"
+      label="Appview URL"
+      placeholder="https://tangled.org"
     />
 
-    <.button id="save-tangled" type="submit">Save knot</.button>
+    <.button id="save-tangled" type="submit">Save account</.button>
   </.form>
 
   <%= if @tangled do %>
     <.list>
-      <:item title="Host keys">
-        <p :for={fingerprint <- @tangled_fingerprints}>{fingerprint}</p>
-        <p>Check these against the fingerprints the knot's operator publishes.</p>
-      </:item>
+      <:item title="Account">{@tangled.handle}</:item>
+      <:item title="DID">{@tangled.did}</:item>
+      <:item title="Appview">{@tangled.base_url}</:item>
     </.list>
+
+    <%= case @tangled_repos do %>
+      <% {:ok, repos} -> %>
+        <ul id="tangled-repos">
+          <li :for={repo <- repos}>{repo.full_name}</li>
+        </ul>
+      <% {:error, reason} -> %>
+        <p id="tangled-error">Could not list Tangled repositories: {reason}</p>
+      <% nil -> %>
+    <% end %>
+
+    <%= if @tangled_knots != [] do %>
+      <.header>
+        Knot host keys
+        <:subtitle>
+          Check these against the fingerprints each knot's operator publishes.
+        </:subtitle>
+      </.header>
+
+      <.list>
+        <:item :for={knot <- @tangled_knots} title={knot.host}>
+          <p :for={fingerprint <- knot.fingerprints}>{fingerprint}</p>
+        </:item>
+      </.list>
+    <% end %>
 
     <%= if @tangled.public_key do %>
       <.header>
         Public key
-        <:subtitle>Add this to the knot so git-sync may push to it.</:subtitle>
+        <:subtitle>Add this to each knot so git-sync may push to it.</:subtitle>
       </.header>
 
       <pre id="tangled-public-key" phx-no-curly-interpolation><%= @tangled.public_key %></pre>

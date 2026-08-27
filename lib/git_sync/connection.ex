@@ -9,6 +9,8 @@ defmodule GitSync.Connection do
 
   @kinds [:forgejo, :github, :tangled]
 
+  @appview "https://tangled.org"
+
   schema "connections" do
     field :kind, Ecto.Enum, values: @kinds
     field :base_url, :string
@@ -18,7 +20,9 @@ defmodule GitSync.Connection do
     field :subject, :string
     field :ssh_key, GitSync.Encrypted.Binary, redact: true
     field :public_key, :string
-    field :host_key, :string
+    field :did, :string
+    field :handle, :string
+    field :pds_url, :string
     field :client_id, :string
     field :client_secret, GitSync.Encrypted.Binary, redact: true
     field :operator, :string
@@ -35,6 +39,23 @@ defmodule GitSync.Connection do
     |> validate_change(:base_url, &validate_url/2)
     |> unique_constraint(:kind)
   end
+
+  @doc """
+  Changeset for a Tangled connection. The operator supplies the account and,
+  at most, the appview to reach its knots through; the identity fields are
+  resolved from the account rather than typed.
+  """
+  def tangled_changeset(connection, attrs) do
+    base_url = attrs |> Map.get("base_url", "") |> String.trim() |> appview()
+
+    connection
+    |> changeset(Map.put(attrs, "base_url", base_url))
+    |> cast(attrs, [:handle])
+    |> validate_required([:handle])
+  end
+
+  defp appview(""), do: @appview
+  defp appview(base_url), do: base_url
 
   @doc """
   Changeset for a forge whose credential is obtained over OAuth.

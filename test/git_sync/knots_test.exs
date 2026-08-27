@@ -10,18 +10,19 @@ defmodule GitSync.KnotsTest do
 
   setup do
     connection =
-      Repo.insert!(%Connection{
-        kind: :tangled,
-        base_url: "https://tangled.org",
-        host_key: "tangled.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdefault"
-      })
+      Repo.insert!(%Connection{kind: :tangled, base_url: "https://127.0.0.1"})
 
     %{connection: connection}
   end
 
   describe "host_key/2" do
-    test "uses the connection's own key for a repo on its knot", %{connection: connection} do
-      assert Knots.host_key(connection, "adam/git-sync") == {:ok, connection.host_key}
+    test "pins the appview for a repo that names no knot", %{connection: connection} do
+      %{public: public} = KnotServer.serve()
+
+      assert {:ok, host_key} = Knots.host_key(connection, "adam/git-sync")
+      assert Ssh.fingerprints(host_key) == [KnotServer.fingerprint(public)]
+
+      assert %Knot{} = Repo.get_by(Knot, connection_id: connection.id, host: "127.0.0.1")
     end
 
     test "scans and pins a knot named by the repo", %{connection: connection} do

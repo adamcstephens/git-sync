@@ -3,8 +3,6 @@ defmodule GitSync.ConnectionsTest do
 
   alias GitSync.Connections
   alias GitSync.Forge.Token
-  alias GitSync.KnotServer
-  alias GitSync.Ssh
 
   @attrs %{
     "base_url" => "https://codeberg.org",
@@ -66,54 +64,86 @@ defmodule GitSync.ConnectionsTest do
 
   describe "tangled" do
     setup do
-      %{public: public} = KnotServer.serve()
-
-      %{host_public: public}
+      Req.Test.stub(GitSync.Http, fn conn ->
+        case conn.host do
+          "public.api.bsky.app" -> Req.Test.json(conn, %{"did" => "did:plc:abc"})
+          "plc.directory" -> Req.Test.json(conn, did_doc())
+        end
+      end)
     end
 
-    test "configuring a knot scans the host for its keys" do
+    test "configuring an account resolves the identity its repositories hang off" do
       refute Connections.tangled()
 
-      assert {:ok, connection} =
-               Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      assert {:ok, connection} = Connections.configure_tangled(%{"handle" => "oppi.li"})
 
       assert connection.kind == :tangled
-      assert connection.host_key =~ "ssh-ed25519 "
+      assert connection.did == "did:plc:abc"
+      assert connection.handle == "oppi.li"
+      assert connection.pds_url == "https://pds.example"
       assert Connections.tangled().id == connection.id
     end
 
-    test "the scanned keys are the ones the host actually offers", %{host_public: public} do
-      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+    test "the appview is tangled.org unless another one is given" do
+      assert {:ok, connection} = Connections.configure_tangled(%{"handle" => "oppi.li"})
 
-      assert Ssh.fingerprints(connection.host_key) == [KnotServer.fingerprint(public)]
+      assert connection.base_url == "https://tangled.org"
     end
 
-    test "configuring twice rescans and updates the single row" do
-      {:ok, first} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
-      {:ok, second} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1/"})
+    test "an operator running their own appview may name it" do
+      assert {:ok, connection} =
+               Connections.configure_tangled(%{
+                 "handle" => "oppi.li",
+                 "base_url" => "https://tangled.example"
+               })
+
+      assert connection.base_url == "https://tangled.example"
+    end
+
+    test "a blank appview is the default rather than an invalid URL" do
+      assert {:ok, connection} =
+               Connections.configure_tangled(%{"handle" => "oppi.li", "base_url" => ""})
+
+      assert connection.base_url == "https://tangled.org"
+    end
+
+    test "the handle is stored as the directory spells it, not as it was typed" do
+      assert {:ok, connection} = Connections.configure_tangled(%{"handle" => "@oppi.li"})
+
+      assert connection.handle == "oppi.li"
+    end
+
+    test "configuring twice re-resolves and updates the single row" do
+      {:ok, first} = Connections.configure_tangled(%{"handle" => "oppi.li"})
+      {:ok, second} = Connections.configure_tangled(%{"handle" => "did:plc:abc"})
 
       assert first.id == second.id
-      assert second.base_url == "https://127.0.0.1/"
     end
 
-    test "a host that cannot be scanned is an error on the URL" do
-      KnotServer.refuse()
+    test "an account that cannot be resolved is an error on the handle" do
+      Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 400, ""))
 
-      assert {:error, changeset} =
-               Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      assert {:error, changeset} = Connections.configure_tangled(%{"handle" => "nobody.example"})
 
-      assert %{base_url: ["no host keys came back" <> _]} = errors_on(changeset)
+      assert %{handle: ["No account could be found for nobody.example"]} = errors_on(changeset)
       refute Connections.tangled()
     end
 
-    test "a base_url that is not a URL never reaches the network" do
-      assert {:error, changeset} = Connections.configure_tangled(%{"base_url" => "not a url"})
+    test "an account nobody typed never reaches the network" do
+      assert {:error, changeset} = Connections.configure_tangled(%{"handle" => ""})
+
+      assert %{handle: ["can't be blank"]} = errors_on(changeset)
+    end
+
+    test "an appview that is not a URL never reaches the network" do
+      assert {:error, changeset} =
+               Connections.configure_tangled(%{"handle" => "oppi.li", "base_url" => "not a url"})
 
       assert %{base_url: ["must be an http or https URL"]} = errors_on(changeset)
     end
 
     test "generating a key stores the private half and exposes the public half" do
-      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      {:ok, connection} = Connections.configure_tangled(%{"handle" => "oppi.li"})
 
       assert {:ok, connection} = Connections.generate_tangled_key(connection)
 
@@ -122,7 +152,7 @@ defmodule GitSync.ConnectionsTest do
     end
 
     test "generating a key again replaces the old one" do
-      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      {:ok, connection} = Connections.configure_tangled(%{"handle" => "oppi.li"})
       {:ok, first} = Connections.generate_tangled_key(connection)
       {:ok, second} = Connections.generate_tangled_key(first)
 
@@ -130,14 +160,28 @@ defmodule GitSync.ConnectionsTest do
       refute second.ssh_key == first.ssh_key
     end
 
-    test "rescanning a knot leaves its key alone" do
-      {:ok, connection} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+    test "re-resolving an account leaves its key alone" do
+      {:ok, connection} = Connections.configure_tangled(%{"handle" => "oppi.li"})
       {:ok, connection} = Connections.generate_tangled_key(connection)
 
-      {:ok, rescanned} = Connections.configure_tangled(%{"base_url" => "https://127.0.0.1"})
+      {:ok, resolved} = Connections.configure_tangled(%{"handle" => "oppi.li"})
 
-      assert rescanned.ssh_key == connection.ssh_key
-      assert rescanned.public_key == connection.public_key
+      assert resolved.ssh_key == connection.ssh_key
+      assert resolved.public_key == connection.public_key
+    end
+
+    defp did_doc do
+      %{
+        "id" => "did:plc:abc",
+        "alsoKnownAs" => ["at://oppi.li"],
+        "service" => [
+          %{
+            "id" => "#atproto_pds",
+            "type" => "AtprotoPersonalDataServer",
+            "serviceEndpoint" => "https://pds.example"
+          }
+        ]
+      }
     end
   end
 

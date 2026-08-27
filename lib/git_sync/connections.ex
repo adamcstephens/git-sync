@@ -9,6 +9,7 @@ defmodule GitSync.Connections do
   alias GitSync.Forge.Token
   alias GitSync.Repo
   alias GitSync.Ssh
+  alias GitSync.Tangled.Identity
 
   def list, do: Repo.all(from c in Connection, order_by: [asc: c.id])
 
@@ -65,22 +66,26 @@ defmodule GitSync.Connections do
   end
 
   @doc """
-  Saves the knot's URL, scanning it for the host keys git-sync should pin. The
-  keypair is left alone; see `generate_tangled_key/1`.
+  Saves the Tangled account whose repositories may be mirrored, resolving it to
+  the DID and PDS the repository records are read from. The keypair is left
+  alone; see `generate_tangled_key/1`.
+
+  Nothing is scanned here. Every knot a repository names is pinned the first
+  time git-sync pushes to it, so the account is the only thing to settle.
   """
   def configure_tangled(attrs) do
     changeset =
       (tangled() || %Connection{})
-      |> Connection.changeset(Map.put(attrs, "kind", :tangled))
+      |> Connection.tangled_changeset(Map.put(attrs, "kind", :tangled))
 
     with %Ecto.Changeset{valid?: true} <- changeset,
-         {:ok, host_key} <- scan(changeset) do
+         {:ok, identity} <- Identity.resolve(Ecto.Changeset.get_field(changeset, :handle)) do
       changeset
-      |> Ecto.Changeset.put_change(:host_key, host_key)
+      |> Ecto.Changeset.change(identity)
       |> Repo.insert_or_update()
     else
       %Ecto.Changeset{} -> {:error, Map.put(changeset, :action, :insert)}
-      {:error, reason} -> {:error, base_url_error(changeset, reason)}
+      {:error, reason} -> {:error, handle_error(changeset, reason)}
     end
   end
 
@@ -100,15 +105,9 @@ defmodule GitSync.Connections do
     end
   end
 
-  defp scan(changeset) do
-    %URI{host: host} = URI.parse(Ecto.Changeset.get_field(changeset, :base_url))
-
-    Ssh.scan_host(host)
-  end
-
-  defp base_url_error(changeset, reason) do
+  defp handle_error(changeset, reason) do
     changeset
-    |> Ecto.Changeset.add_error(:base_url, reason)
+    |> Ecto.Changeset.add_error(:handle, reason)
     |> Map.put(:action, :insert)
   end
 

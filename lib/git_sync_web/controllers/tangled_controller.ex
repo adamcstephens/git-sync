@@ -11,7 +11,7 @@ defmodule GitSyncWeb.TangledController do
     case Connections.configure_tangled(params) do
       {:ok, _connection} ->
         conn
-        |> put_flash(:info, "Knot saved. Generate a key and add it to the knot to push.")
+        |> put_flash(:info, "Account saved. Generate a key and add it to your knots to push.")
         |> redirect(to: ~p"/connections")
 
       {:error, changeset} ->
@@ -25,7 +25,7 @@ defmodule GitSyncWeb.TangledController do
     case Connections.generate_tangled_key(tangled) do
       {:ok, _connection} ->
         conn
-        |> put_flash(:info, "Key generated. Add the public key to the knot.")
+        |> put_flash(:info, "Key generated. Add the public key to your knots.")
         |> redirect(to: ~p"/connections")
 
       {:error, reason} ->
@@ -42,7 +42,7 @@ defmodule GitSyncWeb.TangledController do
 
       nil ->
         conn
-        |> put_flash(:error, "No knot is configured yet.")
+        |> put_flash(:error, "No Tangled account is configured yet.")
         |> redirect(to: ~p"/connections")
         |> halt()
     end

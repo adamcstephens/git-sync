@@ -205,13 +205,10 @@ defmodule GitSync.MirrorTest do
     test "pushes to a knot over ssh", %{forge: forge} do
       source = source(forge)
 
-      knot =
-        knot_connection(forge,
-          base_url: "https://knot.invalid",
-          host_key: "knot.invalid ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
-        )
+      knot = knot_connection(forge, base_url: "https://knot.invalid")
 
       repoint(source, knot)
+      pin(knot, "knot.invalid")
 
       {:error, run} = Mirror.sync(reload(source))
 
@@ -225,16 +222,10 @@ defmodule GitSync.MirrorTest do
     test "pushes to the knot a repo names rather than the connection's", %{forge: forge} do
       source = source(forge)
 
-      knot =
-        knot_connection(forge,
-          base_url: "https://tangled.org",
-          host_key: "tangled.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdefault"
-        )
+      knot = knot_connection(forge, base_url: "https://tangled.org")
 
       repoint(source, knot, "git.invalid/adam/git-sync")
-
-      pinned = "git.invalid ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIpinned"
-      Repo.insert!(%Knot{connection_id: knot.id, host: "git.invalid", host_key: pinned})
+      pin(knot, "git.invalid")
 
       {:error, run} = Mirror.sync(reload(source))
 
@@ -340,6 +331,14 @@ defmodule GitSync.MirrorTest do
     |> hd()
     |> Ecto.Changeset.change(connection_id: connection.id, repo: repo)
     |> Repo.update!()
+  end
+
+  defp pin(%Connection{} = knot, host) do
+    Repo.insert!(%Knot{
+      connection_id: knot.id,
+      host: host,
+      host_key: "#{host} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
+    })
   end
 
   defp knot_connection(forge, attrs) do

@@ -3,8 +3,8 @@ defmodule GitSync.Knot do
   The host keys pinned for one knot a connection pushes to.
 
   A Tangled account's repositories can be spread over several knots, and a
-  host key belongs to the host rather than the account, so the connection's
-  own `host_key` only covers the knot its `base_url` names.
+  host key belongs to the host rather than the account, so there is nowhere on
+  the connection itself for one to live.
   """
 
   use Ecto.Schema
