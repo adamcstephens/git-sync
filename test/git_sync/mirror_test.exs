@@ -77,6 +77,19 @@ defmodule GitSync.MirrorTest do
       assert refs(other) == []
     end
 
+    test "picks up a destination added since the source was loaded", %{forge: forge} do
+      source = source(forge)
+      {:ok, _} = Mirror.sync(source)
+
+      other = bare_repo(forge, "adam/other.git")
+      destination(source, forge, repo: "adam/other.git")
+
+      {:ok, run} = Mirror.sync(source)
+
+      assert length(run.targets) == 2
+      assert refs(other) == ["refs/heads/main"]
+    end
+
     test "broadcasts the run as it starts and finishes", %{forge: forge} do
       source = source(forge)
       :ok = GitSync.Runs.subscribe(source.id)

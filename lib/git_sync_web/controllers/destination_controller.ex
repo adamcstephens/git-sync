@@ -3,12 +3,15 @@ defmodule GitSyncWeb.DestinationController do
 
   alias GitSync.Destinations
   alias GitSync.Sources
+  alias GitSync.Sync
 
   def create(conn, %{"source_id" => source_id, "destination" => params}) do
     source = Sources.get(source_id)
 
     case Destinations.create(source, params) do
       {:ok, _destination} ->
+        Sync.sync_now(source.id)
+
         conn
         |> put_flash(:info, "Destination added.")
         |> redirect(to: ~p"/sources/#{source}")

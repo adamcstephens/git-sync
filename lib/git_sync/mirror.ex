@@ -22,10 +22,12 @@ defmodule GitSync.Mirror do
 
   @doc """
   Fetches a source once and pushes it to each of its enabled destinations,
-  recording the attempt as a `Run` with a `RunTarget` per destination.
+  recording the attempt as a `Run` with a `RunTarget` per destination. The
+  destinations are read afresh, so a runner started before one was added still
+  pushes to it.
   """
   def sync(%Source{} = source) do
-    source = Repo.preload(source, [:connection, destinations: :connection])
+    source = Repo.preload(source, [:connection, destinations: :connection], force: true)
     run = start_run(source)
 
     case Forge.fresh(source.connection) do

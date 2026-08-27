@@ -6,6 +6,7 @@ defmodule GitSyncWeb.DestinationControllerTest do
   alias GitSync.Forge.Token
   alias GitSync.Repo
   alias GitSync.Sources
+  alias GitSync.Sync
 
   setup :configure_forgejo
 
@@ -43,6 +44,28 @@ defmodule GitSyncWeb.DestinationControllerTest do
                "adam/mirror",
                "adam/second-mirror"
              ]
+    end
+
+    test "syncs the source so the new destination fills up", %{conn: conn} = context do
+      %{source: source, github: github} = context
+      test = self()
+
+      {:ok, pid} =
+        Sync.start_runner(source,
+          sync_fun: fn synced -> send(test, {:synced, synced.id}) end,
+          debounce_ms: 0
+        )
+
+      on_exit(fn -> Sync.stop_runner(source.id) end)
+      Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
+      assert_receive {:synced, _}
+
+      post(conn, ~p"/sources/#{source}/destinations",
+        destination: %{connection_id: github.id, repo: "adam/second-mirror"}
+      )
+
+      source_id = source.id
+      assert_receive {:synced, ^source_id}
     end
 
     test "reports an invalid destination", %{conn: conn} = context do
