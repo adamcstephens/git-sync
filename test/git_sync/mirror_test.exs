@@ -114,6 +114,26 @@ defmodule GitSync.MirrorTest do
                git!(["rev-parse", "refs/heads/main"], origin)
     end
 
+    test "reclones when the source is repointed at another repo", %{
+      forge: forge,
+      replica: replica
+    } do
+      source = source(forge)
+      {:ok, _} = Mirror.sync(source)
+
+      other = bare_repo(forge, "adam/other.git")
+      commit(other, "OTHER.md", "other")
+      Repo.update!(Ecto.Changeset.change(source, repo: "adam/other.git"))
+
+      {:ok, run} = Mirror.sync(reload(source))
+
+      assert run.status == :success
+      assert run.log =~ "git clone --mirror"
+
+      assert git!(["rev-parse", "refs/heads/main"], replica) ==
+               git!(["rev-parse", "refs/heads/main"], other)
+    end
+
     test "prunes refs the source has deleted", %{forge: forge, origin: origin} do
       source = source(forge)
       git!(["branch", "doomed"], origin)

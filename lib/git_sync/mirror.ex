@@ -1,8 +1,9 @@
 defmodule GitSync.Mirror do
   @moduledoc """
   Moves refs from a source repository onto its destination replicas by shelling
-  out to `git` against a per-source workspace. One fetch feeds every
-  destination, so siblings share a clone rather than each keeping their own.
+  out to `git` against a workspace named for the source's clone URL. One fetch
+  feeds every destination, so siblings share a clone rather than each keeping
+  their own.
   """
 
   alias GitSync.Connection
@@ -143,8 +144,14 @@ defmodule GitSync.Mirror do
     end)
   end
 
-  defp workspace(%Source{id: id}) do
-    Path.join(Application.fetch_env!(:git_sync, :workspace_root), "#{id}.git")
+  defp workspace(%Source{connection: connection, repo: repo}) do
+    digest =
+      connection
+      |> Forge.clone_url(repo, :read)
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.url_encode64(padding: false)
+
+    Path.join(Application.fetch_env!(:git_sync, :workspace_root), digest <> ".git")
   end
 
   defp announce(%Run{} = run) do
