@@ -25,17 +25,24 @@ defmodule GitSync.Mirror do
   recording the attempt as a `Run` with a `RunTarget` per destination. The
   destinations are read afresh, so a runner started before one was added still
   pushes to it.
+
+  A run is only ever finished here, so anything that raises is caught and
+  recorded rather than leaving the run in flight for good.
   """
   def sync(%Source{} = source) do
     source = Repo.preload(source, [:connection, destinations: :connection], force: true)
     run = start_run(source)
 
-    case Forge.fresh(source.connection) do
-      {:ok, connection} ->
-        fetched(run, %{source | connection: connection})
+    try do
+      case Forge.fresh(source.connection) do
+        {:ok, connection} ->
+          fetched(run, %{source | connection: connection})
 
-      {:error, reason} ->
-        finish_run(run, :failure, "#{reason}")
+        {:error, reason} ->
+          finish_run(run, :failure, "#{reason}")
+      end
+    rescue
+      error -> finish_run(run, :failure, Exception.message(error))
     end
   end
 

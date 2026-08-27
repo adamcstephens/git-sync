@@ -27,6 +27,28 @@ defmodule GitSync.Runs do
 
   def get(id), do: Run |> Repo.get(id) |> Repo.preload(targets: [destination: :connection])
 
+  @doc """
+  Fails every run still marked running, and returns how many there were. A run
+  is only ever finished by the process that started it, so one left running is
+  one whose process is gone: call this as the server comes up, before anything
+  starts a run of its own.
+  """
+  def abandon_running do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {count, _} =
+      Repo.update_all(from(r in Run, where: r.status == :running),
+        set: [
+          status: :failure,
+          finished_at: now,
+          updated_at: now,
+          log: "abandoned: the server stopped before this run finished"
+        ]
+      )
+
+    count
+  end
+
   def subscribe(source_id), do: PubSub.subscribe(GitSync.PubSub, topic(source_id))
 
   def broadcast(%Run{} = run),

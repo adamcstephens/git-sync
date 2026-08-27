@@ -248,6 +248,20 @@ defmodule GitSync.MirrorTest do
       refute run.log =~ "s3cret"
     end
 
+    test "fails the run when the sync raises", %{forge: forge} do
+      source = source(forge)
+      blocked = Path.join(forge, "not-a-directory")
+      File.write!(blocked, "")
+      Application.put_env(:git_sync, :workspace_root, Path.join(blocked, "workspaces"))
+
+      {:error, run} = Mirror.sync(source)
+
+      assert run.status == :failure
+      assert run.targets == []
+      assert run.finished_at
+      assert run.log =~ "not a directory"
+    end
+
     test "fails the run when the source credential cannot be renewed", %{forge: forge} do
       source = source(forge)
 

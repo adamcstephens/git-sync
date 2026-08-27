@@ -62,6 +62,29 @@ defmodule GitSync.RunsTest do
     end
   end
 
+  describe "abandon_running/0" do
+    setup :sources
+
+    test "fails runs left behind by a stopped server", %{source: source} do
+      stranded = run(source, ~U[2026-08-01 00:00:00Z], :running)
+
+      assert Runs.abandon_running() == 1
+
+      stranded = Repo.get!(Run, stranded.id)
+      assert stranded.status == :failure
+      assert stranded.finished_at
+      assert stranded.log =~ "abandoned"
+    end
+
+    test "leaves runs that finished alone", %{source: source} do
+      finished = run(source, ~U[2026-08-01 00:00:00Z])
+
+      assert Runs.abandon_running() == 0
+
+      assert Repo.get!(Run, finished.id).status == :success
+    end
+  end
+
   defp sources(_context) do
     forge = Repo.insert!(%Connection{kind: :forgejo, base_url: "https://forge.test"})
     github = Repo.insert!(%Connection{kind: :github, base_url: "https://github.com"})
@@ -79,7 +102,7 @@ defmodule GitSync.RunsTest do
     %{source: source, other: insert.("adam/other"), destination: destination}
   end
 
-  defp run(%Source{} = source, started_at) do
-    Repo.insert!(%Run{source_id: source.id, status: :success, started_at: started_at})
+  defp run(%Source{} = source, started_at, status \\ :success) do
+    Repo.insert!(%Run{source_id: source.id, status: status, started_at: started_at})
   end
 end

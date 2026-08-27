@@ -26,7 +26,7 @@ defmodule GitSync.Application do
 
     with {:ok, pid} <- Supervisor.start_link(children, opts) do
       GitSync.Forgejo.Provider.start_configured()
-      start_runners()
+      resume_syncing()
       {:ok, pid}
     end
   end
@@ -39,8 +39,11 @@ defmodule GitSync.Application do
     :ok
   end
 
-  defp start_runners do
-    if GitSync.Sync.runners_enabled?(), do: GitSync.Sync.start_enabled()
+  defp resume_syncing do
+    if GitSync.Sync.runners_enabled?() do
+      GitSync.Runs.abandon_running()
+      GitSync.Sync.start_enabled()
+    end
   end
 
   defp skip_migrations?() do
