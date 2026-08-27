@@ -1,0 +1,55 @@
+<Layouts.app flash={@flash} current_operator={@current_operator}>
+  <.header>
+    Sources
+    <:subtitle>Repositories mirrored onto their destinations.</:subtitle>
+  </.header>
+
+  <p :if={@sources == []}>Nothing is being mirrored yet.</p>
+
+  <section :for={source <- @sources} id={"source-#{source.id}"} class="source">
+    <h3>
+      <.link href={~p"/sources/#{source}"}>{source.repo}</.link> on {source.connection.base_url}
+    </h3>
+    <p>
+      Every {source.interval_seconds}s, {(source.enabled && "on") || "off"}.
+    </p>
+    <ul>
+      <li :for={destination <- source.destinations}>
+        {destination.repo} on {destination.connection.base_url}
+        <span :if={!destination.enabled}>
+          (off)
+        </span>
+      </li>
+    </ul>
+  </section>
+
+  <.header>Add a source</.header>
+
+  <.form for={@form} id="source-form" action={~p"/sources"}>
+    <.forge_field
+      field={@form[:connection_id]}
+      label="Source forge"
+      options={@connection_options}
+    />
+    <.repo_field
+      id="source-repo-field"
+      field={@form[:repo]}
+      label="Source repository"
+      repos={@source_repos}
+    />
+    <.forge_field
+      field={@destination_form[:connection_id]}
+      label="Destination forge"
+      options={@connection_options}
+    />
+    <.repo_field
+      id="destination-repo-field"
+      field={@destination_form[:repo]}
+      label="Destination repository"
+      repos={@destination_repos}
+    />
+    <.input field={@form[:interval_seconds]} type="number" label="Interval in seconds" />
+
+    <.button id="add-source" type="submit">Add source</.button>
+  </.form>
+</Layouts.app>

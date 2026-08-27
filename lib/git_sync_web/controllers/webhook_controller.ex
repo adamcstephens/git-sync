@@ -2,21 +2,20 @@ defmodule GitSyncWeb.WebhookController do
   use GitSyncWeb, :controller
 
   alias GitSync.Forge
-  alias GitSync.Mapping
-  alias GitSync.Mappings
-  alias GitSync.Repo
+  alias GitSync.Source
+  alias GitSync.Sources
   alias GitSync.Sync
   alias GitSyncWeb.CacheBodyReader
 
   @doc """
-  Pulls a mapping's next sync forward. The route carries no session, so the
-  per-mapping secret and the forge's signature are the whole of the access
+  Pulls a source's next sync forward. The route carries no session, so the
+  per-source secret and the forge's signature are the whole of the access
   control.
   """
-  def create(conn, %{"mapping_id" => mapping_id}) do
-    with %Mapping{} = mapping <- mapping(mapping_id),
-         :ok <- verify(conn, mapping) do
-      Sync.sync_now(mapping.id)
+  def create(conn, %{"source_id" => source_id}) do
+    with %Source{} = source <- source(source_id),
+         :ok <- verify(conn, source) do
+      Sync.sync_now(source.id)
       send_resp(conn, 204, "")
     else
       nil -> send_resp(conn, 404, "")
@@ -24,21 +23,21 @@ defmodule GitSyncWeb.WebhookController do
     end
   end
 
-  defp mapping(mapping_id) do
-    with {id, ""} <- Integer.parse(mapping_id),
-         %Mapping{} = mapping <- Mappings.get(id) do
-      Repo.preload(mapping, :source_connection)
+  defp source(source_id) do
+    with {id, ""} <- Integer.parse(source_id),
+         %Source{} = source <- Sources.get(id) do
+      source
     else
       _ -> nil
     end
   end
 
-  defp verify(conn, %Mapping{} = mapping) do
+  defp verify(conn, %Source{} = source) do
     Forge.verify_webhook(
-      mapping.source_connection,
+      source.connection,
       conn.req_headers,
       CacheBodyReader.raw_body(conn),
-      mapping.webhook_secret
+      source.webhook_secret
     )
   end
 end

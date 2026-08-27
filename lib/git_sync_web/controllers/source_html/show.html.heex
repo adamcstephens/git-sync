@@ -1,0 +1,76 @@
+<Layouts.app flash={@flash} current_operator={@current_operator}>
+  <.header>
+    {@source.repo}
+    <:subtitle>
+      On {@source.connection.base_url}, every {@source.interval_seconds}s.
+    </:subtitle>
+    <:actions>
+      <.button href={~p"/sources/#{@source}/sync"} method="post">Sync now</.button>
+      <.form for={%{}} action={~p"/sources/#{@source}"} method="put">
+        <input type="hidden" name="source[enabled]" value={to_string(!@source.enabled)} />
+        <.button id="toggle-source" type="submit" variant="secondary">
+          {(@source.enabled && "Switch off") || "Switch on"}
+        </.button>
+      </.form>
+      <.button
+        href={~p"/sources/#{@source}"}
+        method="delete"
+        variant="secondary"
+        data-confirm="Remove this source and its destinations?"
+      >
+        Remove
+      </.button>
+    </:actions>
+  </.header>
+
+  <.header>Destinations</.header>
+
+  <.table id="destinations" rows={@source.destinations}>
+    <:col :let={destination} label="Repository">{destination.repo}</:col>
+    <:col :let={destination} label="Forge">{destination.connection.base_url}</:col>
+    <:col :let={destination} label="State">{(destination.enabled && "on") || "off"}</:col>
+    <:action :let={destination}>
+      <.form
+        for={%{}}
+        action={~p"/sources/#{@source}/destinations/#{destination}"}
+        method="put"
+      >
+        <input type="hidden" name="destination[enabled]" value={to_string(!destination.enabled)} />
+        <.button id={"toggle-destination-#{destination.id}"} type="submit" variant="secondary">
+          {(destination.enabled && "Switch off") || "Switch on"}
+        </.button>
+      </.form>
+    </:action>
+    <:action :let={destination}>
+      <.link
+        href={~p"/sources/#{@source}/destinations/#{destination}"}
+        method="delete"
+        data-confirm="Remove this destination?"
+      >
+        Remove
+      </.link>
+    </:action>
+  </.table>
+
+  <.form for={@form} id="destination-form" action={~p"/sources/#{@source}/destinations"}>
+    <.forge_field
+      field={@form[:connection_id]}
+      label="Destination forge"
+      options={@connection_options}
+    />
+    <.repo_field
+      id="destination-repo-field"
+      field={@form[:repo]}
+      label="Destination repository"
+      repos={@destination_repos}
+    />
+
+    <.button id="add-destination" type="submit">Add destination</.button>
+  </.form>
+
+  <.header>Runs</.header>
+
+  <div data-init={"@get('#{~p"/sources/#{@source}/events"}')"}>
+    <.runs runs={@runs} />
+  </div>
+</Layouts.app>

@@ -1,6 +1,7 @@
 defmodule GitSync.Sync.Runner do
   @moduledoc """
-  Drives one mapping on its own timer. A tick mirrors the pair; a `sync_now`
+  Drives one source on its own timer. A tick mirrors it onto every
+  destination; a `sync_now`
   from a webhook or the UI pulls the next tick forward, and a burst of them
   coalesces into a single sync.
   """
@@ -9,30 +10,30 @@ defmodule GitSync.Sync.Runner do
 
   require Logger
 
-  alias GitSync.Mapping
   alias GitSync.Mirror
+  alias GitSync.Source
   alias GitSync.Sync
 
   @debounce_ms 2_000
 
   def start_link(opts) do
-    mapping = Keyword.fetch!(opts, :mapping)
-    GenServer.start_link(__MODULE__, opts, name: Sync.via(mapping.id))
+    source = Keyword.fetch!(opts, :source)
+    GenServer.start_link(__MODULE__, opts, name: Sync.via(source.id))
   end
 
   @doc """
-  Asks the runner for this mapping to sync ahead of its next tick.
+  Asks the runner for this source to sync ahead of its next tick.
   """
-  def sync_now(mapping_id), do: GenServer.cast(Sync.via(mapping_id), :sync_now)
+  def sync_now(source_id), do: GenServer.cast(Sync.via(source_id), :sync_now)
 
   @impl GenServer
   def init(opts) do
-    mapping = Keyword.fetch!(opts, :mapping)
+    source = Keyword.fetch!(opts, :source)
 
     state = %{
-      mapping: mapping,
+      source: source,
       sync_fun: Keyword.get(opts, :sync_fun, &Mirror.sync/1),
-      interval_ms: Keyword.get(opts, :interval_ms, mapping.interval_seconds * 1_000),
+      interval_ms: Keyword.get(opts, :interval_ms, source.interval_seconds * 1_000),
       debounce_ms: Keyword.get(opts, :debounce_ms, @debounce_ms),
       timer: nil
     }
@@ -50,13 +51,13 @@ defmodule GitSync.Sync.Runner do
   end
 
   defp sync(state) do
-    %Mapping{} = mapping = state.mapping
-    state.sync_fun.(mapping)
+    %Source{} = source = state.source
+    state.sync_fun.(source)
   rescue
     error ->
       Logger.error(
         msg: "sync raised",
-        mapping_id: to_string(state.mapping.id),
+        source_id: to_string(state.source.id),
         error: Exception.message(error)
       )
   end

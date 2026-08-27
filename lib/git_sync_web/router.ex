@@ -48,14 +48,17 @@ defmodule GitSyncWeb.Router do
     pipe_through [:browser, :configured, :authenticated]
 
     get "/", PageController, :home
-    get "/mappings", MappingController, :index
-    post "/mappings", MappingController, :create
-    get "/mappings/repos", MappingController, :repos
-    get "/mappings/:id", MappingController, :show
-    put "/mappings/:id", MappingController, :update
-    delete "/mappings/:id", MappingController, :delete
-    post "/mappings/:id/sync", MappingController, :sync
-    get "/mappings/:id/events", MappingController, :events
+    get "/sources", SourceController, :index
+    post "/sources", SourceController, :create
+    get "/sources/repos", SourceController, :repos
+    get "/sources/:id", SourceController, :show
+    put "/sources/:id", SourceController, :update
+    delete "/sources/:id", SourceController, :delete
+    post "/sources/:id/sync", SourceController, :sync
+    get "/sources/:id/events", SourceController, :events
+    post "/sources/:source_id/destinations", DestinationController, :create
+    put "/sources/:source_id/destinations/:id", DestinationController, :update
+    delete "/sources/:source_id/destinations/:id", DestinationController, :delete
     get "/connections", ConnectionController, :index
     post "/connections/github", GithubController, :create
     delete "/connections/github", GithubController, :delete
@@ -69,7 +72,7 @@ defmodule GitSyncWeb.Router do
   scope "/", GitSyncWeb do
     pipe_through :api
 
-    post "/webhooks/:mapping_id", WebhookController, :create
+    post "/webhooks/:source_id", WebhookController, :create
   end
 
   # Other scopes may use custom stacks.

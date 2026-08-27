@@ -1,13 +1,13 @@
-defmodule GitSyncWeb.MappingHTML do
+defmodule GitSyncWeb.SourceHTML do
   @moduledoc """
-  Mapping management and run history pages.
+  Source management and run history pages.
   """
   use GitSyncWeb, :html
 
-  embed_templates "mapping_html/*"
+  embed_templates "source_html/*"
 
   @doc """
-  A repository picker for one end of a mapping. A forge that can be listed
+  A repository picker for one end of a mirror. A forge that can be listed
   gives a searchable list of its repositories; anything else falls back to a
   typed `owner/name`.
   """
@@ -69,7 +69,29 @@ defmodule GitSyncWeb.MappingHTML do
   end
 
   @doc """
-  The run history of one mapping, patched into the page as runs happen.
+  The forge picker for one end of a mirror, which repaints the repository
+  picker beside it as it changes.
+  """
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :label, :string, required: true
+  attr :options, :list, required: true
+
+  def forge_field(assigns) do
+    ~H"""
+    <.input
+      field={@field}
+      type="select"
+      label={@label}
+      options={@options}
+      prompt="Choose a forge"
+      data-bind={"#{@field.form.name}_connection_id"}
+      data-on:change={"@get('#{~p"/sources/repos"}')"}
+    />
+    """
+  end
+
+  @doc """
+  The run history of one source, patched into the page as runs happen.
   """
   attr :runs, :list, required: true
 
@@ -83,8 +105,15 @@ defmodule GitSyncWeb.MappingHTML do
         <p>
           Started {run.started_at}<span :if={run.finished_at}>, finished {run.finished_at}</span>
         </p>
-        <p :if={run.refs_pushed != []}>Pushed {Enum.join(run.refs_pushed, ", ")}</p>
         <pre :if={run.log}>{run.log}</pre>
+
+        <article :for={target <- run.targets} id={"run-target-#{target.id}"} class="run-target">
+          <h4 data-status={target.status}>
+            {target.destination.repo} on {target.destination.connection.base_url}: {target.status}
+          </h4>
+          <p :if={target.refs_pushed != []}>Pushed {Enum.join(target.refs_pushed, ", ")}</p>
+          <pre :if={target.log}>{target.log}</pre>
+        </article>
       </article>
     </section>
     """

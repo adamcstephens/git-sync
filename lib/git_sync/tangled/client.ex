@@ -1,7 +1,7 @@
 defmodule GitSync.Tangled.Client do
   @moduledoc """
   Tangled knots speak plain git and nothing else: no repository listing and no
-  webhooks, so a Tangled mapping is driven entirely by its timer.
+  webhooks, so a Tangled source is driven entirely by its timer.
   """
 
   @behaviour GitSync.Forge

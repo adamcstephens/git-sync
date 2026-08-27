@@ -2,80 +2,76 @@ defmodule GitSyncWeb.WebhookControllerTest do
   use GitSyncWeb.ConnCase
 
   alias GitSync.Connection
-  alias GitSync.Mappings
+  alias GitSync.Sources
   alias GitSync.Repo
   alias GitSync.Sync
 
   @body ~s({"ref":"refs/heads/main"})
 
   setup %{conn: conn} do
-    source = Repo.insert!(%Connection{kind: :forgejo, base_url: "https://forge.test", token: "t"})
+    forge = Repo.insert!(%Connection{kind: :forgejo, base_url: "https://forge.test", token: "t"})
+    github = Repo.insert!(%Connection{kind: :github, base_url: "https://github.com", token: "t"})
 
-    destination =
-      Repo.insert!(%Connection{kind: :github, base_url: "https://github.com", token: "t"})
-
-    {:ok, mapping} =
-      Mappings.create(%{
-        source_connection_id: source.id,
-        source_repo: "adam/git-sync",
-        destination_connection_id: destination.id,
-        destination_repo: "adam/git-sync"
-      })
+    {:ok, source} =
+      Sources.create_with_destination(
+        %{connection_id: forge.id, repo: "adam/git-sync"},
+        %{connection_id: github.id, repo: "adam/mirror"}
+      )
 
     conn = put_req_header(conn, "content-type", "application/json")
 
-    %{conn: conn, mapping: mapping}
+    %{conn: conn, source: source}
   end
 
-  test "wakes the runner for a signed delivery", %{conn: conn, mapping: mapping} do
+  test "wakes the runner for a signed delivery", %{conn: conn, source: source} do
     test = self()
-    mapping_id = mapping.id
+    source_id = source.id
 
     {:ok, pid} =
-      Sync.start_runner(mapping,
+      Sync.start_runner(source,
         sync_fun: fn m -> send(test, {:synced, m.id}) end,
         debounce_ms: 0
       )
 
-    on_exit(fn -> Sync.stop_runner(mapping_id) end)
+    on_exit(fn -> Sync.stop_runner(source_id) end)
     Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
     assert_receive {:synced, _}
 
     conn =
       conn
-      |> put_req_header("x-forgejo-signature", signature(@body, mapping.webhook_secret))
-      |> post(~p"/webhooks/#{mapping.id}", @body)
+      |> put_req_header("x-forgejo-signature", signature(@body, source.webhook_secret))
+      |> post(~p"/webhooks/#{source.id}", @body)
 
     assert response(conn, 204)
-    assert_receive {:synced, ^mapping_id}
+    assert_receive {:synced, ^source_id}
   end
 
-  test "refuses a delivery signed with the wrong secret", %{conn: conn, mapping: mapping} do
+  test "refuses a delivery signed with the wrong secret", %{conn: conn, source: source} do
     conn =
       conn
       |> put_req_header("x-forgejo-signature", signature(@body, "wrong"))
-      |> post(~p"/webhooks/#{mapping.id}", @body)
+      |> post(~p"/webhooks/#{source.id}", @body)
 
     assert response(conn, 401)
   end
 
-  test "refuses an unsigned delivery", %{conn: conn, mapping: mapping} do
-    conn = post(conn, ~p"/webhooks/#{mapping.id}", @body)
+  test "refuses an unsigned delivery", %{conn: conn, source: source} do
+    conn = post(conn, ~p"/webhooks/#{source.id}", @body)
 
     assert response(conn, 401)
   end
 
-  test "does not reveal whether an unknown mapping exists", %{conn: conn} do
+  test "does not reveal whether an unknown source exists", %{conn: conn} do
     conn = post(conn, ~p"/webhooks/999", @body)
 
     assert response(conn, 404)
   end
 
-  test "needs no operator session", %{conn: conn, mapping: mapping} do
+  test "needs no operator session", %{conn: conn, source: source} do
     conn =
       conn
-      |> put_req_header("x-forgejo-signature", signature(@body, mapping.webhook_secret))
-      |> post(~p"/webhooks/#{mapping.id}", @body)
+      |> put_req_header("x-forgejo-signature", signature(@body, source.webhook_secret))
+      |> post(~p"/webhooks/#{source.id}", @body)
 
     assert response(conn, 204)
   end

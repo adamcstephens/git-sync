@@ -1,11 +1,15 @@
 defmodule GitSync.Run do
   @moduledoc """
-  The outcome of a single sync attempt for one mapping.
+  One tick of a source: the fetch it did, and a `GitSync.RunTarget` for each
+  destination it pushed to.
   """
 
   use Ecto.Schema
 
   import Ecto.Changeset
+
+  alias GitSync.RunTarget
+  alias GitSync.Source
 
   @statuses [:running, :success, :failure]
 
@@ -13,10 +17,10 @@ defmodule GitSync.Run do
     field :status, Ecto.Enum, values: @statuses, default: :running
     field :started_at, :utc_datetime
     field :finished_at, :utc_datetime
-    field :refs_pushed, {:array, :string}, default: []
     field :log, :string
 
-    belongs_to :mapping, GitSync.Mapping
+    belongs_to :source, Source
+    has_many :targets, RunTarget
 
     timestamps(type: :utc_datetime)
   end
@@ -25,8 +29,8 @@ defmodule GitSync.Run do
 
   def changeset(run, attrs) do
     run
-    |> cast(attrs, [:mapping_id, :status, :started_at, :finished_at, :refs_pushed, :log])
-    |> validate_required([:mapping_id, :status, :started_at])
-    |> assoc_constraint(:mapping)
+    |> cast(attrs, [:source_id, :status, :started_at, :finished_at, :log])
+    |> validate_required([:source_id, :status, :started_at])
+    |> assoc_constraint(:source)
   end
 end

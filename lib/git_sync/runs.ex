@@ -1,6 +1,6 @@
 defmodule GitSync.Runs do
   @moduledoc """
-  The pub/sub feed of sync progress, one topic per mapping.
+  The pub/sub feed of sync progress, one topic per source.
   """
 
   import Ecto.Query
@@ -12,21 +12,25 @@ defmodule GitSync.Runs do
   @limit 20
 
   @doc """
-  The most recent runs of one mapping, newest first.
+  The most recent runs of one source, newest first, each with what every
+  destination made of it.
   """
-  def list(mapping_id, limit \\ @limit) do
-    Repo.all(
-      from r in Run,
-        where: r.mapping_id == ^mapping_id,
-        order_by: [desc: r.started_at, desc: r.id],
-        limit: ^limit
+  def list(source_id, limit \\ @limit) do
+    from(r in Run,
+      where: r.source_id == ^source_id,
+      order_by: [desc: r.started_at, desc: r.id],
+      limit: ^limit
     )
+    |> Repo.all()
+    |> Repo.preload(targets: [destination: :connection])
   end
 
-  def subscribe(mapping_id), do: PubSub.subscribe(GitSync.PubSub, topic(mapping_id))
+  def get(id), do: Run |> Repo.get(id) |> Repo.preload(targets: [destination: :connection])
+
+  def subscribe(source_id), do: PubSub.subscribe(GitSync.PubSub, topic(source_id))
 
   def broadcast(%Run{} = run),
-    do: PubSub.broadcast(GitSync.PubSub, topic(run.mapping_id), {:run, run})
+    do: PubSub.broadcast(GitSync.PubSub, topic(run.source_id), {:run, run})
 
-  defp topic(mapping_id), do: "runs:#{mapping_id}"
+  defp topic(source_id), do: "runs:#{source_id}"
 end

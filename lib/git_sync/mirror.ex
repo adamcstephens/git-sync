@@ -1,58 +1,78 @@
 defmodule GitSync.Mirror do
   @moduledoc """
-  Moves refs from a source repository onto a destination replica by shelling
-  out to `git` against a per-mapping workspace.
+  Moves refs from a source repository onto its destination replicas by shelling
+  out to `git` against a per-source workspace. One fetch feeds every
+  destination, so siblings share a clone rather than each keeping their own.
   """
 
   alias GitSync.Connection
+  alias GitSync.Destination
   alias GitSync.Forge
   alias GitSync.Git
   alias GitSync.Knots
-  alias GitSync.Mapping
   alias GitSync.Repo
   alias GitSync.Run
   alias GitSync.Runs
+  alias GitSync.RunTarget
+  alias GitSync.Source
   alias GitSync.Ssh
 
   @refspecs ["refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"]
 
   @doc """
-  Mirrors one mapping, recording the attempt as a `Run`.
+  Fetches a source once and pushes it to each of its enabled destinations,
+  recording the attempt as a `Run` with a `RunTarget` per destination.
   """
-  def sync(%Mapping{} = mapping) do
-    mapping = Repo.preload(mapping, [:source_connection, :destination_connection])
-    run = start_run(mapping)
+  def sync(%Source{} = source) do
+    source = Repo.preload(source, [:connection, destinations: :connection])
+    run = start_run(source)
 
-    case renewed(mapping) do
-      {:ok, mapping} ->
-        {status, log, refs} = mirror(mapping)
-        finish_run(run, status, log, refs)
+    case Forge.fresh(source.connection) do
+      {:ok, connection} ->
+        fetched(run, %{source | connection: connection})
 
       {:error, reason} ->
-        finish_run(run, :failure, "#{reason}", [])
+        finish_run(run, :failure, "#{reason}")
     end
   end
 
-  defp renewed(%Mapping{} = mapping) do
-    with {:ok, source} <- Forge.fresh(mapping.source_connection),
-         {:ok, destination} <- Forge.fresh(mapping.destination_connection) do
-      {:ok, %{mapping | source_connection: source, destination_connection: destination}}
+  defp fetched(run, %Source{} = source) do
+    case fetch(source) do
+      {:error, log} ->
+        finish_run(run, :failure, log)
+
+      {:ok, log} ->
+        statuses =
+          source.destinations
+          |> Enum.filter(& &1.enabled)
+          |> Enum.map(&push_target(run, source, &1))
+
+        finish_run(run, status(statuses), log)
     end
   end
 
-  defp mirror(%Mapping{} = mapping) do
-    {fetch_result, fetch_log} = fetch(mapping)
+  defp status(statuses), do: (Enum.all?(statuses, &(&1 == :success)) && :success) || :failure
 
-    case fetch_result do
-      :error ->
-        {:failure, fetch_log, []}
+  defp push_target(%Run{} = run, %Source{} = source, %Destination{} = destination) do
+    {status, log, refs} =
+      case Forge.fresh(destination.connection) do
+        {:ok, connection} -> push(source, %{destination | connection: connection})
+        {:error, reason} -> {:failure, "#{reason}", []}
+      end
 
-      :ok ->
-        case push(mapping) do
-          {:ok, push_log, refs} -> {:success, fetch_log <> push_log, refs}
-          {:error, push_log, refs} -> {:failure, fetch_log <> push_log, refs}
-        end
-    end
+    %RunTarget{}
+    |> RunTarget.changeset(%{
+      run_id: run.id,
+      destination_id: destination.id,
+      status: status,
+      refs_pushed: refs,
+      log: log
+    })
+    |> Repo.insert!()
+
+    announce(run)
+
+    status
   end
 
   @doc """
@@ -68,25 +88,25 @@ defmodule GitSync.Mirror do
   defp credentials(:github, token), do: "x-access-token:" <> token
   defp credentials(:forgejo, token), do: token <> ":"
 
-  defp fetch(%Mapping{source_connection: connection} = mapping) do
-    workspace = workspace(mapping)
+  defp fetch(%Source{connection: connection} = source) do
+    workspace = workspace(source)
 
     if File.dir?(workspace) do
-      git(["remote", "update", "--prune"], connection, mapping.source_repo, cd: workspace)
+      git(["remote", "update", "--prune"], connection, source.repo, cd: workspace)
     else
       File.mkdir_p!(Path.dirname(workspace))
-      url = Forge.clone_url(connection, mapping.source_repo, :read)
-      git(["clone", "--mirror", url, workspace], connection, mapping.source_repo)
+      url = Forge.clone_url(connection, source.repo, :read)
+      git(["clone", "--mirror", url, workspace], connection, source.repo)
     end
   end
 
-  defp push(%Mapping{destination_connection: connection} = mapping) do
-    url = Forge.clone_url(connection, mapping.destination_repo, :write)
+  defp push(%Source{} = source, %Destination{connection: connection} = destination) do
+    url = Forge.clone_url(connection, destination.repo, :write)
     args = ["push", "--prune", "--force", "--porcelain", url | @refspecs]
 
-    case git(args, connection, mapping.destination_repo, cd: workspace(mapping), output: true) do
-      {:ok, log, output} -> {:ok, log, pushed_refs(output)}
-      {:error, log, output} -> {:error, log, pushed_refs(output)}
+    case git(args, connection, destination.repo, cd: workspace(source), output: true) do
+      {:ok, log, output} -> {:success, log, pushed_refs(output)}
+      {:error, log, output} -> {:failure, log, pushed_refs(output)}
     end
   end
 
@@ -123,33 +143,29 @@ defmodule GitSync.Mirror do
     end)
   end
 
-  defp workspace(%Mapping{id: id}) do
+  defp workspace(%Source{id: id}) do
     Path.join(Application.fetch_env!(:git_sync, :workspace_root), "#{id}.git")
   end
 
   defp announce(%Run{} = run) do
-    Runs.broadcast(run)
+    run.id |> Runs.get() |> Runs.broadcast()
     run
   end
 
-  defp start_run(%Mapping{id: id}) do
+  defp start_run(%Source{id: id}) do
     %Run{}
-    |> Run.changeset(%{mapping_id: id, started_at: DateTime.utc_now()})
+    |> Run.changeset(%{source_id: id, started_at: DateTime.utc_now()})
     |> Repo.insert!()
     |> announce()
   end
 
-  defp finish_run(run, status, log, refs) do
-    run =
-      run
-      |> Run.changeset(%{
-        status: status,
-        finished_at: DateTime.utc_now(),
-        refs_pushed: refs,
-        log: log
-      })
-      |> Repo.update!()
-      |> announce()
+  defp finish_run(run, status, log) do
+    run
+    |> Run.changeset(%{status: status, finished_at: DateTime.utc_now(), log: log})
+    |> Repo.update!()
+    |> announce()
+
+    run = Runs.get(run.id)
 
     if status == :success, do: {:ok, run}, else: {:error, run}
   end

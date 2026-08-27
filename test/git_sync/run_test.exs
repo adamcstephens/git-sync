@@ -2,71 +2,78 @@ defmodule GitSync.RunTest do
   use GitSync.DataCase
 
   alias GitSync.Connection
-  alias GitSync.Mapping
+  alias GitSync.Destination
   alias GitSync.Run
+  alias GitSync.RunTarget
+  alias GitSync.Source
 
   setup do
-    {:ok, source} =
-      Repo.insert(
-        Connection.changeset(%Connection{}, %{kind: :forgejo, base_url: "https://codeberg.org"})
-      )
+    forge = Repo.insert!(%Connection{kind: :forgejo, base_url: "https://codeberg.org"})
+    github = Repo.insert!(%Connection{kind: :github, base_url: "https://github.com"})
+    source = Repo.insert!(%Source{connection_id: forge.id, repo: "adam/git-sync"})
 
-    {:ok, destination} =
-      Repo.insert(
-        Connection.changeset(%Connection{}, %{kind: :github, base_url: "https://github.com"})
-      )
+    destination =
+      Repo.insert!(%Destination{
+        source_id: source.id,
+        connection_id: github.id,
+        repo: "adam/mirror"
+      })
 
-    {:ok, mapping} =
-      Repo.insert(
-        Mapping.changeset(%Mapping{}, %{
-          source_connection_id: source.id,
-          source_repo: "adam/git-sync",
-          destination_connection_id: destination.id,
-          destination_repo: "adam/git-sync"
-        })
-      )
-
-    %{mapping: mapping}
+    %{source: source, destination: destination}
   end
 
-  test "starts running with no refs and no finish time", %{mapping: mapping} do
+  test "starts running with no finish time", %{source: source} do
     {:ok, run} =
       Repo.insert(
-        Run.changeset(%Run{}, %{mapping_id: mapping.id, started_at: DateTime.utc_now()})
+        Run.changeset(%Run{}, %{source_id: source.id, started_at: DateTime.utc_now(:second)})
       )
 
     assert run.status == :running
-    assert run.refs_pushed == []
     assert is_nil(run.finished_at)
   end
 
-  test "round-trips pushed refs and log output", %{mapping: mapping} do
-    {:ok, run} =
+  test "round-trips the pushed refs and log of one destination", context do
+    %{source: source, destination: destination} = context
+
+    run =
+      Repo.insert!(%Run{
+        source_id: source.id,
+        status: :success,
+        started_at: DateTime.utc_now(:second)
+      })
+
+    {:ok, target} =
       Repo.insert(
-        Run.changeset(%Run{}, %{
-          mapping_id: mapping.id,
+        RunTarget.changeset(%RunTarget{}, %{
+          run_id: run.id,
+          destination_id: destination.id,
           status: :success,
-          started_at: DateTime.utc_now(),
-          finished_at: DateTime.utc_now(),
           refs_pushed: ["refs/heads/main", "refs/tags/v1.0.0"],
           log: "everything up-to-date"
         })
       )
 
-    reloaded = Repo.get!(Run, run.id)
+    reloaded = Repo.get!(RunTarget, target.id)
 
     assert reloaded.refs_pushed == ["refs/heads/main", "refs/tags/v1.0.0"]
     assert reloaded.log == "everything up-to-date"
   end
 
-  test "deleting a mapping deletes its runs", %{mapping: mapping} do
-    {:ok, _} =
-      Repo.insert(
-        Run.changeset(%Run{}, %{mapping_id: mapping.id, started_at: DateTime.utc_now()})
-      )
+  test "deleting a source deletes its runs and their targets", context do
+    %{source: source, destination: destination} = context
 
-    {:ok, _} = Repo.delete(mapping)
+    run =
+      Repo.insert!(%Run{
+        source_id: source.id,
+        status: :running,
+        started_at: DateTime.utc_now(:second)
+      })
+
+    Repo.insert!(%RunTarget{run_id: run.id, destination_id: destination.id, status: :success})
+
+    {:ok, _} = Repo.delete(source)
 
     assert Repo.aggregate(Run, :count) == 0
+    assert Repo.aggregate(RunTarget, :count) == 0
   end
 end
