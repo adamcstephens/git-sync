@@ -2,7 +2,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    erl_dist_mcp.url = "git+file:/home/adam/git/erl_dist_mcp";
+    beamdev.url = "git+https://tangled.org/adam.robins.wtf/beamdev";
   };
 
   outputs =
@@ -54,7 +54,7 @@
               pkgs.git
               pkgs.just
               pkgs.sqlite
-              inputs.erl_dist_mcp.packages.${pkgs.stdenv.hostPlatform.system}.default
+              inputs.beamdev.packages.${pkgs.stdenv.hostPlatform.system}.default
             ]
             ++ (lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.inotify-tools ]);
 

@@ -1,5 +1,26 @@
 {
   "nodes": {
+    "beamdev": {
+      "inputs": {
+        "crane": "crane",
+        "flake-parts": "flake-parts",
+        "nixpkgs": "nixpkgs",
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1787866091,
+        "narHash": "sha256-5Wba2QFPkzgQzxIao5qxShvJ5bGOAmb92SWYf4g8+K4=",
+        "ref": "refs/heads/main",
+        "rev": "b787a6968ccfd19226adf5e0b7b8d1dd26b4aa44",
+        "revCount": 45,
+        "type": "git",
+        "url": "https://tangled.org/adam.robins.wtf/beamdev"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://tangled.org/adam.robins.wtf/beamdev"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1787326676,
@@ -15,30 +36,10 @@
         "type": "github"
       }
     },
-    "erl_dist_mcp": {
-      "inputs": {
-        "crane": "crane",
-        "flake-parts": "flake-parts",
-        "nixpkgs": "nixpkgs",
-        "rust-overlay": "rust-overlay"
-      },
-      "locked": {
-        "lastModified": 1787861596,
-        "narHash": "sha256-zpndauNuECfFx6ZtZxpcmAnACNOTx7vn2wQvl2KYJx0=",
-        "rev": "36ae8ba83fea8dc323675a407cecb9467534837b",
-        "revCount": 40,
-        "type": "git",
-        "url": "file:/home/adam/git/erl_dist_mcp"
-      },
-      "original": {
-        "type": "git",
-        "url": "file:/home/adam/git/erl_dist_mcp"
-      }
-    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
-          "erl_dist_mcp",
+          "beamdev",
           "nixpkgs"
         ]
       },
@@ -123,7 +124,7 @@
     },
     "root": {
       "inputs": {
-        "erl_dist_mcp": "erl_dist_mcp",
+        "beamdev": "beamdev",
         "flake-parts": "flake-parts_2",
         "nixpkgs": "nixpkgs_2"
       }
@@ -131,7 +132,7 @@
     "rust-overlay": {
       "inputs": {
         "nixpkgs": [
-          "erl_dist_mcp",
+          "beamdev",
           "nixpkgs"
         ]
       },

@@ -1,8 +1,16 @@
 {
   "mcpServers": {
     "erlang": {
-      "command": "erl_dist_mcp",
-      "args": ["--mode", "elixir", "--node", "git-sync-dev@localhost"],
+      "command": "nix",
+      "args": [
+        "develop",
+        "--command",
+        "beamdev",
+        "--mode",
+        "elixir",
+        "--node",
+        "git-sync-dev@localhost"
+      ],
       "env": {}
     }
   }
