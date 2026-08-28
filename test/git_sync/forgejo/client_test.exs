@@ -52,6 +52,11 @@ defmodule GitSync.Forgejo.ClientTest do
     assert {:ok, [%{full_name: "adam/git-sync"}]} = Client.list_repos(@connection)
   end
 
+  test "reports a connection that has not been authorized yet" do
+    assert {:error, "Connect Forgejo to list its repositories"} =
+             Client.list_repos(%Connection{base_url: "https://codeberg.org/"})
+  end
+
   test "reports an unauthorized response" do
     stub(fn conn -> Plug.Conn.send_resp(conn, 401, "") end)
 

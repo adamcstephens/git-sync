@@ -54,8 +54,6 @@ defmodule GitSyncWeb.ConnectionController do
   defp tangled_repos(%Connection{} = tangled), do: Forge.list_repos(tangled)
   defp tangled_repos(nil), do: nil
 
-  defp github_repos(%Connection{token: token} = github) when is_binary(token),
-    do: Forge.list_repos(github)
-
-  defp github_repos(_github), do: nil
+  defp github_repos(%Connection{} = github), do: Forge.list_repos(github)
+  defp github_repos(nil), do: nil
 end

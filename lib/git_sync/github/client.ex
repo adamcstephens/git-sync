@@ -17,6 +17,9 @@ defmodule GitSync.Github.Client do
   Lists the repositories the stored token can reach.
   """
   @impl GitSync.Forge
+  def list_repos(%Connection{token: nil}),
+    do: {:error, "Connect GitHub to list its repositories"}
+
   def list_repos(%Connection{token: token}) do
     fetch = fn page, per_page ->
       request =

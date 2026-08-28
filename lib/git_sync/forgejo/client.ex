@@ -16,6 +16,9 @@ defmodule GitSync.Forgejo.Client do
   Lists the repositories the connected operator can access.
   """
   @impl GitSync.Forge
+  def list_repos(%Connection{token: nil}),
+    do: {:error, "Connect Forgejo to list its repositories"}
+
   def list_repos(%Connection{token: token} = connection) do
     fetch = fn page, limit ->
       request =
