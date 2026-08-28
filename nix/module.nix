@@ -108,9 +108,13 @@ in
         RestrictRealtime = true;
         RestrictSUIDSGID = true;
         SystemCallArchitectures = "native";
+        SystemCallErrorNumber = "EPERM";
+        # File.chmod/2 reaches chown(2): prim_file sets owner and mode in the
+        # one call, so a mode-only change still chowns the path to (-1, -1).
         SystemCallFilter = [
           "@system-service"
           "~@privileged"
+          "@chown"
         ];
       };
     };
