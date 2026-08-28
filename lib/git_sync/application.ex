@@ -7,6 +7,8 @@ defmodule GitSync.Application do
 
   @impl true
   def start(_type, _args) do
+    GitSync.Tools.check!()
+
     children = [
       GitSyncWeb.Telemetry,
       GitSync.Vault,

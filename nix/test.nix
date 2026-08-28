@@ -25,5 +25,12 @@
     machine.wait_for_open_port(4000)
     machine.succeed("curl --fail --show-error http://127.0.0.1:4000/")
     machine.succeed("test -f /var/lib/git-sync/git_sync.db")
+
+    path = machine.succeed(
+        "tr '\\0' '\\n' < /proc/$(systemctl show --property MainPID --value git-sync.service)/environ"
+        " | sed -n 's/^PATH=//p'"
+    )
+    for tool in ["git", "ssh", "ssh-agent", "ssh-keygen", "ssh-keyscan"]:
+        machine.succeed(f"PATH={path.strip()} command -v {tool}")
   '';
 }

@@ -4,7 +4,6 @@
   beamPackages,
   esbuild,
   git,
-  makeWrapper,
   openssh,
 }:
 
@@ -32,8 +31,6 @@ beamPackages.mixRelease rec {
     hash = "sha256-dU5V1UQ/ztU5LQVR4e2/fCupJihKVEpZJOezdqK+s2M=";
   };
 
-  nativeBuildInputs = [ makeWrapper ];
-
   # exqlite otherwise tries to download a precompiled NIF into a cache under $HOME.
   FORCE_BUILD = "1";
 
@@ -45,15 +42,16 @@ beamPackages.mixRelease rec {
     mix assets.deploy --no-deps-check
   '';
 
-  postFixup = ''
-    wrapProgram $out/bin/git_sync \
-      --prefix PATH : ${
-        lib.makeBinPath [
-          bash
-          git
-          openssh
-        ]
-      }
+  # mixRelease owns postFixup, so the tools we shell out to reach the release
+  # through its own environment hook instead of a wrapper.
+  postInstall = ''
+    echo 'export PATH=${
+      lib.makeBinPath [
+        bash
+        git
+        openssh
+      ]
+    }:$PATH' >> $out/releases/${version}/env.sh
   '';
 
   meta = {
