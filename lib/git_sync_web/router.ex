@@ -76,6 +76,14 @@ defmodule GitSyncWeb.Router do
     post "/webhooks/:source_id", WebhookController, :create
   end
 
+  if Application.compile_env(:git_sync, :dev_routes) do
+    scope "/dev", GitSyncWeb do
+      pipe_through [:browser, :configured]
+
+      get "/login", DevSessionController, :create
+    end
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", GitSyncWeb do
   #   pipe_through :api

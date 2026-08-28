@@ -45,3 +45,6 @@ npm-debug.log
 
 # Mirror workspaces created at runtime.
 /priv/workspaces/
+
+# Repositories the development seeds mirror between.
+/priv/dev_repos/

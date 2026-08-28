@@ -43,3 +43,6 @@ config :git_sync, :req_options, plug: {Req.Test, GitSync.Http}, retry: false
 
 # The sync runners are started per test, not at boot.
 config :git_sync, start_runners: false
+
+# Dev-only routes and seeds are compiled in, so they can be tested.
+config :git_sync, dev_routes: true
