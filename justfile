@@ -3,6 +3,9 @@ default: check
 check:
     mix precommit
 
+deps-nix:
+    deps_nix --output nix/deps.nix --no-app-config
+
 setup:
     mix setup
 

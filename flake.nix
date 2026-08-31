@@ -3,6 +3,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     beamdev.url = "git+https://tangled.org/adam.robins.wtf/beamdev";
+    deps_nix.url = "github:adamcstephens/deps_nix?ref=push-lqyzksrxytlt";
+    deps_nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -55,6 +57,7 @@
               pkgs.just
               pkgs.sqlite
               inputs.beamdev.packages.${pkgs.stdenv.hostPlatform.system}.default
+              inputs.deps_nix.packages.${pkgs.stdenv.hostPlatform.system}.default
             ]
             ++ (lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.inotify-tools ]);
 
