@@ -2,6 +2,7 @@ defmodule GitSyncWeb.DevSessionControllerTest do
   use GitSyncWeb.ConnCase
 
   alias GitSync.Connections
+  alias GitSync.DevSeeds
 
   setup :configure_forgejo
 
@@ -11,6 +12,13 @@ defmodule GitSyncWeb.DevSessionControllerTest do
     assert redirected_to(conn) == ~p"/"
     assert get_session(conn, "operator") == "dev"
     assert %{operator: "dev"} = Connections.forgejo()
+  end
+
+  test "leaves the seeded credential in place", %{conn: conn} do
+    get(conn, ~p"/dev/login")
+
+    assert %{access: token} = Connections.token(Connections.forgejo())
+    assert token == DevSeeds.token()
   end
 
   test "signing in twice does not trip the seat claim", %{conn: conn} do

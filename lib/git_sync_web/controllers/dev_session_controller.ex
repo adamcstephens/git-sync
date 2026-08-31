@@ -2,7 +2,9 @@ if Application.compile_env(:git_sync, :dev_routes) do
   defmodule GitSyncWeb.DevSessionController do
     @moduledoc """
     Signs in as the seeded operator without going near Forgejo, so a
-    development instance needs no identity provider and no real credential.
+    development instance needs no identity provider and no real credential. The
+    credential recorded is the seeded one, which `GitSync.DevForge` answers to,
+    so signing in leaves the connection as healthy as it found it.
 
     The seat is claimed through `GitSync.Connections.record_login/3` rather than
     around it, so the gate that refuses a second operator is still the one under
@@ -19,7 +21,9 @@ if Application.compile_env(:git_sync, :dev_routes) do
     def create(conn, _params) do
       operator = DevSeeds.operator()
 
-      case Connections.record_login(Connections.forgejo(), operator, %Token{}) do
+      token = %Token{access: DevSeeds.token()}
+
+      case Connections.record_login(Connections.forgejo(), operator, token) do
         {:ok, _connection} ->
           conn
           |> put_flash(:info, "Signed in as #{operator}.")

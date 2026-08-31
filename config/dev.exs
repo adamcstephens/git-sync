@@ -51,6 +51,10 @@ config :git_sync, GitSyncWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :git_sync, dev_routes: true
 
+# Every outbound request is answered from the seeded data, so a development
+# instance reaches no forge and needs no real credential.
+config :git_sync, :req_options, plug: GitSync.DevForge, retry: false
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
