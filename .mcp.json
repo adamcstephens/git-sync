@@ -9,7 +9,7 @@
         "--mode",
         "elixir",
         "--node",
-        "git-sync-dev@localhost"
+        "git-sync-dev@localhost.localdomain"
       ],
       "env": {}
     }
