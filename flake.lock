@@ -36,6 +36,27 @@
         "type": "github"
       }
     },
+    "deps_nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787937802,
+        "narHash": "sha256-dIC5264/8cRhXfqdNqRn/A3flVEk51vXDTAN9ytwkak=",
+        "owner": "adamcstephens",
+        "repo": "deps_nix",
+        "rev": "f83b56abca21b4550cffc167ef02a18ece604dd5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "adamcstephens",
+        "ref": "push-lqyzksrxytlt",
+        "repo": "deps_nix",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
@@ -108,11 +129,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1787498568,
-        "narHash": "sha256-9i/VTdusq/+NM/tz+J1Re+ojkMB8MBf0QshnYfzHz30=",
+        "lastModified": 1788039129,
+        "narHash": "sha256-pa4Q0qErvCvzCaaUph7Sm37RhR4xvPrYI8Lgz6k85+A=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "56c02bc00adcf003215cc4bd996d6efaf4cff188",
+        "rev": "d2f67949798825fe853f7c5d0492b8bf016d3f88",
         "type": "github"
       },
       "original": {
@@ -125,6 +146,7 @@
     "root": {
       "inputs": {
         "beamdev": "beamdev",
+        "deps_nix": "deps_nix",
         "flake-parts": "flake-parts_2",
         "nixpkgs": "nixpkgs_2"
       }
