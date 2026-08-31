@@ -226,3 +226,27 @@ dl.data-list dd {
   border-radius: var(--radius);
   font-size: 0.8125rem;
 }
+
+.connection {
+  margin-bottom: 2.5rem;
+}
+
+.health[data-health="ok"] {
+  color: var(--info);
+}
+
+.health[data-health="error"] {
+  color: var(--error);
+}
+
+.health[data-health="disconnected"],
+.health[data-health="none"] {
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}

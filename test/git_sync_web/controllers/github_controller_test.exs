@@ -113,7 +113,7 @@ defmodule GitSyncWeb.GithubControllerTest do
       %{github: github}
     end
 
-    test "the connections page lists GitHub repositories", %{conn: conn} do
+    test "the connections page reports how healthy GitHub is", %{conn: conn} do
       Req.Test.stub(GitSync.Http, fn req_conn ->
         Req.Test.json(req_conn, [
           %{
@@ -124,7 +124,10 @@ defmodule GitSyncWeb.GithubControllerTest do
         ])
       end)
 
-      assert html_response(get(conn, ~p"/connections"), 200) =~ "adam/git-sync"
+      html = html_response(get(conn, ~p"/connections"), 200)
+
+      assert html =~ "Healthy — 1 repository"
+      refute html =~ "adam/git-sync"
     end
 
     test "disconnecting drops the token but keeps the OAuth app", %{conn: conn} do

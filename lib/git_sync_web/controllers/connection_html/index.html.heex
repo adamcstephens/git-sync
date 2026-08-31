@@ -4,127 +4,179 @@
     <:subtitle>Forges git-sync can read from and write to.</:subtitle>
   </.header>
 
-  <.list>
-    <:item title="Forgejo">{@connection.base_url}</:item>
-    <:item title="Operator">{@connection.operator}</:item>
-  </.list>
+  <section class="connection" id="forgejo">
+    <.header>Forgejo</.header>
 
-  <.header>Repositories</.header>
-
-  <%= case @repos do %>
-    <% {:ok, repos} -> %>
-      <ul id="forgejo-repos">
-        <li :for={repo <- repos}>{repo.full_name}</li>
-      </ul>
-    <% {:error, reason} -> %>
-      <p id="forgejo-error">Could not list repositories: {reason}</p>
-  <% end %>
-
-  <.header>
-    GitHub
-    <:subtitle>
-      Register an OAuth application on GitHub with
-      <code>{GitSyncWeb.RedirectUri.github_callback(@conn)}</code>
-      as its callback URL, then connect it here.
-    </:subtitle>
-  </.header>
-
-  <.form for={@github_form} id="github-form" action={~p"/connections/github"}>
-    <.input field={@github_form[:client_id]} label="Client ID" />
-    <.input field={@github_form[:client_secret]} type="password" label="Client secret" />
-
-    <.button id="save-github" type="submit">Save application</.button>
-  </.form>
-
-  <%= if @github && @github.client_id do %>
-    <%= if @github.token do %>
-      <.button id="disconnect-github" href={~p"/connections/github"} method="delete">
-        Disconnect GitHub
-      </.button>
-    <% else %>
-      <.button id="connect-github" href={~p"/auth/github"}>Connect GitHub</.button>
-    <% end %>
-  <% end %>
-
-  <%= case @github_repos do %>
-    <% {:ok, repos} -> %>
-      <ul id="github-repos">
-        <li :for={repo <- repos}>{repo.full_name}</li>
-      </ul>
-    <% {:error, reason} -> %>
-      <p id="github-error">Could not list GitHub repositories: {reason}</p>
-    <% nil -> %>
-  <% end %>
-
-  <.header>
-    Tangled
-    <:subtitle>
-      Repositories are public atproto records, so git-sync lists them from the
-      account that owns them. Pushing needs a key each knot has been given.
-    </:subtitle>
-  </.header>
-
-  <.form for={@tangled_form} id="tangled-form" action={~p"/connections/tangled"} method="post">
-    <.input field={@tangled_form[:handle]} label="Handle or DID" placeholder="alice.example.com" />
-    <.input
-      field={@tangled_form[:base_url]}
-      label="Appview URL"
-      placeholder="https://tangled.org"
-    />
-
-    <.button id="save-tangled" type="submit">Save account</.button>
-  </.form>
-
-  <%= if @tangled do %>
     <.list>
-      <:item title="Account">{@tangled.handle}</:item>
-      <:item title="DID">{@tangled.did}</:item>
-      <:item title="Appview">{@tangled.base_url}</:item>
+      <:item title="Instance">{@connection.base_url}</:item>
+      <:item title="Operator">{@connection.operator}</:item>
+      <:item title="Health"><.health id="forgejo-health" health={@forgejo_health} /></:item>
     </.list>
+  </section>
 
-    <%= case @tangled_repos do %>
-      <% {:ok, repos} -> %>
-        <ul id="tangled-repos">
-          <li :for={repo <- repos}>{repo.full_name}</li>
-        </ul>
-      <% {:error, reason} -> %>
-        <p id="tangled-error">Could not list Tangled repositories: {reason}</p>
-      <% nil -> %>
-    <% end %>
-
+  <section class="connection" id="github" data-signals={"{githubForm: #{@github_form_open}}"}>
     <.header>
-      Knot host keys
+      GitHub
       <:subtitle>
-        Check these against the fingerprints each knot's operator publishes. The
-        host a knot is pushed to is worked out when it is first pinned; pin it
-        again here to correct one.
+        Register an OAuth application on GitHub with
+        <code>{GitSyncWeb.RedirectUri.github_callback(@conn)}</code>
+        as its callback URL, then connect it here.
       </:subtitle>
     </.header>
 
-    <.list>
-      <:item :for={knot <- @tangled_knots} title={knot.host}>
-        <p>{knot.ssh_host}</p>
-        <p :for={fingerprint <- knot.fingerprints}>{fingerprint}</p>
-      </:item>
-    </.list>
+    <%= if @github && @github.client_id do %>
+      <.list>
+        <:item title="Application">{@github.client_id}</:item>
+        <:item title="Health"><.health id="github-health" health={@github_health} /></:item>
+      </.list>
 
-    <.form :let={f} for={%{}} as={:knot} action={~p"/connections/tangled/knots"} id="knot-form">
-      <.input field={f[:host]} type="text" label="Knot" placeholder="knot1.tangled.sh" />
-      <.input field={f[:ssh_host]} type="text" label="SSH host" placeholder="tangled.org" />
-      <.button type="submit">Pin</.button>
-    </.form>
+      <div class="actions">
+        <%= if @github.token do %>
+          <.button id="disconnect-github" href={~p"/connections/github"} method="delete">
+            Disconnect GitHub
+          </.button>
+        <% else %>
+          <.button id="connect-github" href={~p"/auth/github"}>Connect GitHub</.button>
+        <% end %>
 
-    <%= if @tangled.public_key do %>
+        <.button
+          id="edit-github"
+          type="button"
+          variant="secondary"
+          data-on-click="$githubForm = !$githubForm"
+        >
+          Edit application
+        </.button>
+      </div>
+    <% end %>
+
+    <div id="github-application" data-show="$githubForm">
+      <.form for={@github_form} id="github-form" action={~p"/connections/github"}>
+        <.input field={@github_form[:client_id]} label="Client ID" />
+        <.input field={@github_form[:client_secret]} type="password" label="Client secret" />
+
+        <.button id="save-github" type="submit">Save application</.button>
+      </.form>
+    </div>
+  </section>
+
+  <section class="connection" id="tangled" data-signals={"{tangledForm: #{@tangled_form_open}}"}>
+    <.header>
+      Tangled
+      <:subtitle>
+        Repositories are public atproto records, so git-sync lists them from the
+        account that owns them. Pushing needs a key each knot has been given.
+      </:subtitle>
+    </.header>
+
+    <%= if @tangled do %>
+      <.list>
+        <:item title="Account">{@tangled.handle}</:item>
+        <:item title="DID">{@tangled.did}</:item>
+        <:item title="Appview">{@tangled.base_url}</:item>
+        <:item title="Health"><.health id="tangled-health" health={@tangled_health} /></:item>
+      </.list>
+
+      <div class="actions">
+        <.button
+          id="edit-tangled"
+          type="button"
+          variant="secondary"
+          data-on-click="$tangledForm = !$tangledForm"
+        >
+          Edit account
+        </.button>
+      </div>
+    <% end %>
+
+    <div id="tangled-account" data-show="$tangledForm">
+      <.form for={@tangled_form} id="tangled-form" action={~p"/connections/tangled"} method="post">
+        <.input
+          field={@tangled_form[:handle]}
+          label="Handle or DID"
+          placeholder="alice.example.com"
+        />
+        <.input
+          field={@tangled_form[:base_url]}
+          label="Appview URL"
+          placeholder="https://tangled.org"
+        />
+
+        <.button id="save-tangled" type="submit">Save account</.button>
+      </.form>
+    </div>
+
+    <%= if @tangled do %>
+      <div data-signals="{knotForm: false}">
+        <.header>
+          Knot host keys
+          <:subtitle>
+            Check these against the fingerprints each knot's operator publishes. The
+            host a knot is pushed to is worked out when it is first pinned; pin it
+            again here to correct one.
+          </:subtitle>
+        </.header>
+
+        <.list>
+          <:item :for={knot <- @tangled_knots} title={knot.host}>
+            <p>{knot.ssh_host}</p>
+            <p :for={fingerprint <- knot.fingerprints}>{fingerprint}</p>
+          </:item>
+        </.list>
+
+        <div class="actions">
+          <.button
+            id="add-knot"
+            type="button"
+            variant="secondary"
+            data-on-click="$knotForm = !$knotForm"
+          >
+            Add a knot
+          </.button>
+        </div>
+
+        <div id="knot-pin" data-show="$knotForm">
+          <.form
+            :let={f}
+            for={%{}}
+            as={:knot}
+            action={~p"/connections/tangled/knots"}
+            id="knot-form"
+          >
+            <.input field={f[:host]} type="text" label="Knot" placeholder="knot1.tangled.sh" />
+            <.input field={f[:ssh_host]} type="text" label="SSH host" placeholder="tangled.org" />
+            <.button type="submit">Pin</.button>
+          </.form>
+        </div>
+      </div>
+
       <.header>
         Public key
         <:subtitle>Add this to each knot so git-sync may push to it.</:subtitle>
       </.header>
 
-      <pre id="tangled-public-key" phx-no-curly-interpolation><%= @tangled.public_key %></pre>
-    <% end %>
+      <pre
+        :if={@tangled.public_key}
+        id="tangled-public-key"
+        data-ref="publicKey"
+        phx-no-curly-interpolation
+      ><%= @tangled.public_key %></pre>
 
-    <.button id="generate-tangled-key" href={~p"/connections/tangled/key"} method="post">
-      {if @tangled.public_key, do: "Replace key", else: "Generate key"}
-    </.button>
-  <% end %>
+      <div class="actions">
+        <.button
+          :if={@tangled.public_key}
+          id="copy-tangled-public-key"
+          type="button"
+          variant="secondary"
+          data-on-click="navigator.clipboard.writeText($publicKey.textContent)"
+        >
+          Copy
+        </.button>
+
+        <.button id="generate-tangled-key" href={~p"/connections/tangled/key"} method="post">
+          {if @tangled.public_key, do: "Replace key", else: "Generate key"}
+        </.button>
+      </div>
+    <% end %>
+  </section>
 </Layouts.app>
