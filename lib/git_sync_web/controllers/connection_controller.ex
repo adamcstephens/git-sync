@@ -46,7 +46,11 @@ defmodule GitSyncWeb.ConnectionController do
 
   defp knots(%Connection{} = tangled) do
     for knot <- Knots.list(tangled),
-        do: %{host: knot.host, fingerprints: Ssh.fingerprints(knot.host_key)}
+        do: %{
+          host: knot.host,
+          ssh_host: knot.ssh_host,
+          fingerprints: Ssh.fingerprints(knot.host_key)
+        }
   end
 
   defp knots(nil), do: []

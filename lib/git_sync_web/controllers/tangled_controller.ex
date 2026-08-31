@@ -3,9 +3,10 @@ defmodule GitSyncWeb.TangledController do
 
   alias GitSync.Connection
   alias GitSync.Connections
+  alias GitSync.Knots
   alias GitSyncWeb.ConnectionController
 
-  plug :require_tangled when action in [:generate]
+  plug :require_tangled when action in [:generate, :pin]
 
   def create(conn, %{"connection" => params}) do
     case Connections.configure_tangled(params) do
@@ -31,6 +32,25 @@ defmodule GitSyncWeb.TangledController do
       {:error, reason} ->
         conn
         |> put_flash(:error, "Could not generate a key: #{inspect(reason)}")
+        |> redirect(to: ~p"/connections")
+    end
+  end
+
+  @doc """
+  Pins the host a knot is actually pushed to. Tangled runs its own knots behind
+  a proxy that answers only HTTP, and takes their pushes on the appview, so the
+  knot a repo names is not always the host that has the keys.
+  """
+  def pin(%Plug.Conn{assigns: %{tangled: tangled}} = conn, %{"knot" => params}) do
+    case Knots.pin(tangled, %{host: params["host"], ssh_host: params["ssh_host"]}) do
+      {:ok, knot} ->
+        conn
+        |> put_flash(:info, "Pinned #{knot.ssh_host} for #{knot.host}. Check its fingerprints.")
+        |> redirect(to: ~p"/connections")
+
+      {:error, reason} ->
+        conn
+        |> put_flash(:error, "Could not scan #{params["ssh_host"]}: #{reason}")
         |> redirect(to: ~p"/connections")
     end
   end

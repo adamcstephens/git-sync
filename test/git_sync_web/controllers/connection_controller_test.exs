@@ -3,6 +3,7 @@ defmodule GitSyncWeb.ConnectionControllerTest do
 
   alias GitSync.Connections
   alias GitSync.Forge.Token
+  alias GitSync.KnotServer
 
   setup :configure_forgejo
 
@@ -103,10 +104,49 @@ defmodule GitSyncWeb.ConnectionControllerTest do
       GitSync.Repo.insert!(%GitSync.Knot{
         connection_id: Connections.tangled().id,
         host: "knot1.tangled.sh",
+        ssh_host: "tangled.org",
         host_key: "knot1.tangled.sh ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
       })
 
-      assert html_response(get(conn, ~p"/connections"), 200) =~ "knot1.tangled.sh"
+      html = html_response(get(conn, ~p"/connections"), 200)
+
+      assert html =~ "knot1.tangled.sh"
+      assert html =~ "tangled.org"
+    end
+
+    test "pinning a knot scans the endpoint the operator gives for it", %{conn: conn} do
+      stub_tangled()
+      post(conn, ~p"/connections/tangled", %{"connection" => %{"handle" => "oppi.li"}})
+
+      %{public: public} = KnotServer.serve()
+
+      pinned =
+        post(conn, ~p"/connections/tangled/knots", %{
+          "knot" => %{"host" => "knot1.tangled.sh", "ssh_host" => "127.0.0.1"}
+        })
+
+      assert redirected_to(pinned) == ~p"/connections"
+
+      html = html_response(get(conn, ~p"/connections"), 200)
+
+      assert html =~ "knot1.tangled.sh"
+      assert html =~ KnotServer.fingerprint(public)
+    end
+
+    test "a knot endpoint that cannot be scanned is reported", %{conn: conn} do
+      stub_tangled()
+      post(conn, ~p"/connections/tangled", %{"connection" => %{"handle" => "oppi.li"}})
+
+      KnotServer.refuse()
+
+      pinned =
+        post(conn, ~p"/connections/tangled/knots", %{
+          "knot" => %{"host" => "knot1.tangled.sh", "ssh_host" => "127.0.0.1"}
+        })
+
+      assert redirected_to(pinned) == ~p"/connections"
+
+      assert Phoenix.Flash.get(pinned.assigns.flash, :error) =~ "no host keys came back"
     end
 
     test "generating a key shows the public half to copy", %{conn: conn} do

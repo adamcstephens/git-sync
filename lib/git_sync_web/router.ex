@@ -64,6 +64,7 @@ defmodule GitSyncWeb.Router do
     delete "/connections/github", GithubController, :delete
     post "/connections/tangled", TangledController, :create
     post "/connections/tangled/key", TangledController, :generate
+    post "/connections/tangled/knots", TangledController, :pin
     get "/auth/github", GithubController, :authorize
     get "/auth/github/callback", GithubController, :callback
     delete "/logout", SessionController, :delete

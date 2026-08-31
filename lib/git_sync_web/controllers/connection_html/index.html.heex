@@ -92,20 +92,27 @@
       <% nil -> %>
     <% end %>
 
-    <%= if @tangled_knots != [] do %>
-      <.header>
-        Knot host keys
-        <:subtitle>
-          Check these against the fingerprints each knot's operator publishes.
-        </:subtitle>
-      </.header>
+    <.header>
+      Knot host keys
+      <:subtitle>
+        Check these against the fingerprints each knot's operator publishes. A knot
+        that does not answer SSH under its own name — Tangled's own are behind a
+        proxy — is pushed to through the host given here instead.
+      </:subtitle>
+    </.header>
 
-      <.list>
-        <:item :for={knot <- @tangled_knots} title={knot.host}>
-          <p :for={fingerprint <- knot.fingerprints}>{fingerprint}</p>
-        </:item>
-      </.list>
-    <% end %>
+    <.list>
+      <:item :for={knot <- @tangled_knots} title={knot.host}>
+        <p>{knot.ssh_host}</p>
+        <p :for={fingerprint <- knot.fingerprints}>{fingerprint}</p>
+      </:item>
+    </.list>
+
+    <.form :let={f} for={%{}} as={:knot} action={~p"/connections/tangled/knots"} id="knot-form">
+      <.input field={f[:host]} type="text" label="Knot" placeholder="knot1.tangled.sh" />
+      <.input field={f[:ssh_host]} type="text" label="SSH host" placeholder="tangled.org" />
+      <.button type="submit">Pin</.button>
+    </.form>
 
     <%= if @tangled.public_key do %>
       <.header>

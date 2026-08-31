@@ -351,6 +351,7 @@ defmodule GitSync.MirrorTest do
     Repo.insert!(%Knot{
       connection_id: knot.id,
       host: host,
+      ssh_host: host,
       host_key: "#{host} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample"
     })
   end

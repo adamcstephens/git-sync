@@ -111,7 +111,7 @@ defmodule GitSync.Mirror do
   end
 
   defp push(%Source{} = source, %Destination{connection: connection} = destination) do
-    url = Forge.clone_url(connection, destination.repo, :write)
+    url = Knots.push_url(connection, destination.repo)
     args = ["push", "--prune", "--force", "--porcelain", url | @refspecs]
 
     case git(args, connection, destination.repo, cd: workspace(source), output: true) do

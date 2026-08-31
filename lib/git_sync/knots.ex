@@ -6,6 +6,7 @@ defmodule GitSync.Knots do
   import Ecto.Query
 
   alias GitSync.Connection
+  alias GitSync.Forge
   alias GitSync.Knot
   alias GitSync.Repo
   alias GitSync.Ssh
@@ -23,25 +24,59 @@ defmodule GitSync.Knots do
   taken to be on the appview's own, which is the one Tangled hosts itself.
   """
   def host_key(%Connection{kind: :tangled} = connection, repo) do
-    pinned(connection, Client.knot_host(connection, repo) || URI.parse(connection.base_url).host)
+    host = host(connection, repo)
+
+    case get(connection, host) do
+      %Knot{host_key: host_key} ->
+        {:ok, host_key}
+
+      nil ->
+        with {:ok, knot} <- pin(connection, %{host: host, ssh_host: host}),
+             do: {:ok, knot.host_key}
+    end
   end
 
   def host_key(%Connection{}, _repo), do: {:ok, nil}
 
-  defp pinned(%Connection{} = connection, host) do
-    case Repo.get_by(Knot, connection_id: connection.id, host: host) do
-      %Knot{host_key: host_key} -> {:ok, host_key}
-      nil -> pin(connection, host)
+  @doc """
+  The URL a push to `repo` goes to, through the SSH endpoint pinned for its
+  knot when there is one.
+  """
+  def push_url(%Connection{kind: :tangled} = connection, repo) do
+    host = host(connection, repo)
+
+    Client.push_url(connection, repo, ssh_host(connection, host))
+  end
+
+  def push_url(%Connection{} = connection, repo), do: Forge.clone_url(connection, repo, :write)
+
+  @doc """
+  Scans `attrs.ssh_host` and pins whatever answers as the key for `attrs.host`,
+  replacing what was pinned for that knot before.
+  """
+  def pin(%Connection{} = connection, %{host: host, ssh_host: ssh_host} = attrs) do
+    with {:ok, host_key} <- Ssh.scan_host(ssh_host) do
+      knot =
+        connection
+        |> get(host)
+        |> Kernel.||(%Knot{})
+        |> Knot.changeset(Map.merge(attrs, %{connection_id: connection.id, host_key: host_key}))
+        |> Repo.insert_or_update!()
+
+      {:ok, knot}
     end
   end
 
-  defp pin(%Connection{} = connection, host) do
-    with {:ok, host_key} <- Ssh.scan_host(host) do
-      %Knot{}
-      |> Knot.changeset(%{connection_id: connection.id, host: host, host_key: host_key})
-      |> Repo.insert!()
+  defp host(%Connection{base_url: base_url} = connection, repo),
+    do: Client.knot_host(connection, repo) || URI.parse(base_url).host
 
-      {:ok, host_key}
+  defp ssh_host(%Connection{} = connection, host) do
+    case get(connection, host) do
+      %Knot{ssh_host: ssh_host} -> ssh_host
+      nil -> host
     end
   end
+
+  defp get(%Connection{} = connection, host),
+    do: Repo.get_by(Knot, connection_id: connection.id, host: host)
 end

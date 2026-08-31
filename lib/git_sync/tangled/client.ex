@@ -40,10 +40,17 @@ defmodule GitSync.Tangled.Client do
     String.trim_trailing(base_url, "/") <> "/" <> path
   end
 
-  def clone_url(%Connection{base_url: base_url} = connection, repo, :write) do
+  def clone_url(%Connection{base_url: base_url} = connection, repo, :write),
+    do: push_url(connection, repo, knot_host(connection, repo) || URI.parse(base_url).host)
+
+  @doc """
+  The URL a push to `repo` goes to when `ssh_host` is the host that answers for
+  its knot.
+  """
+  def push_url(%Connection{}, repo, ssh_host) do
     {_host, path} = split(repo)
 
-    "git@" <> (knot_host(connection, repo) || URI.parse(base_url).host) <> ":" <> path
+    "git@" <> ssh_host <> ":" <> path
   end
 
   @doc """
