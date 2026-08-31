@@ -61,11 +61,53 @@ defmodule GitSync.KnotsTest do
                Repo.get_by(Knot, connection_id: connection.id, host: "127.0.0.1")
     end
 
+    test "pins a knot the appview runs to the appview", %{connection: connection} do
+      %{public: public} = KnotServer.serve()
+      stub_registration(:appview)
+
+      assert {:ok, host_key} = Knots.host_key(connection, "knot1.tangled.sh/adam/git-sync")
+      assert Ssh.fingerprints(host_key) == [KnotServer.fingerprint(public)]
+
+      assert %Knot{ssh_host: "127.0.0.1"} =
+               Repo.get_by(Knot, connection_id: connection.id, host: "knot1.tangled.sh")
+    end
+
+    test "pins a knot nobody else runs to itself", %{connection: connection} do
+      KnotServer.serve()
+      stub_registration(:elsewhere)
+
+      assert {:error, reason} = Knots.host_key(connection, "knot1.tangled.sh/adam/git-sync")
+      assert reason =~ "no host keys came back from knot1.tangled.sh"
+    end
+
     test "leaves forges that do not have knots alone" do
       connection = Repo.insert!(%Connection{kind: :github, base_url: "https://github.com"})
 
       assert Knots.host_key(connection, "adam/git-sync") == {:ok, nil}
     end
+  end
+
+  defp stub_registration(owner) do
+    Req.Test.stub(GitSync.Http, fn conn ->
+      case {conn.host, owner} do
+        {"public.api.bsky.app", _owner} ->
+          Req.Test.json(conn, %{"did" => "did:plc:appview"})
+
+        {"plc.directory", _owner} ->
+          Req.Test.json(conn, %{
+            "alsoKnownAs" => ["at://127.0.0.1"],
+            "service" => [
+              %{"type" => "AtprotoPersonalDataServer", "serviceEndpoint" => "https://pds.example"}
+            ]
+          })
+
+        {"pds.example", :appview} ->
+          Req.Test.json(conn, %{"uri" => "at://did:plc:appview/sh.tangled.knot/knot1.tangled.sh"})
+
+        {"pds.example", :elsewhere} ->
+          Plug.Conn.send_resp(conn, 400, "")
+      end
+    end)
   end
 
   describe "push_url/2" do

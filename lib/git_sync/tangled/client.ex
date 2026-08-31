@@ -9,8 +9,10 @@ defmodule GitSync.Tangled.Client do
   @behaviour GitSync.Forge
 
   alias GitSync.Connection
+  alias GitSync.Tangled.Identity
 
   @collection "sh.tangled.repo"
+  @knots "sh.tangled.knot"
   @page_size 100
   @max_pages 20
 
@@ -42,6 +44,30 @@ defmodule GitSync.Tangled.Client do
 
   def clone_url(%Connection{base_url: base_url} = connection, repo, :write),
     do: push_url(connection, repo, knot_host(connection, repo) || URI.parse(base_url).host)
+
+  @doc """
+  Whether the appview runs `host` itself.
+
+  A knot is registered as an `sh.tangled.knot` record under whoever runs it, so
+  a knot the appview registered is one the appview takes pushes for: Tangled's
+  own knots sit behind a proxy that answers only HTTP under their own names.
+  """
+  def appview_knot?(%Connection{base_url: base_url}, host) do
+    case Identity.resolve(URI.parse(base_url).host) do
+      {:ok, %{did: did, pds_url: pds_url}} ->
+        request =
+          GitSync.Http.request(
+            base_url: String.trim_trailing(pds_url, "/"),
+            url: "/xrpc/com.atproto.repo.getRecord",
+            params: [repo: did, collection: @knots, rkey: host]
+          )
+
+        match?({:ok, %Req.Response{status: 200}}, Req.get(request))
+
+      {:error, _reason} ->
+        false
+    end
+  end
 
   @doc """
   The URL a push to `repo` goes to when `ssh_host` is the host that answers for

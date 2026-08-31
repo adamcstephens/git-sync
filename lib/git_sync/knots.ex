@@ -31,7 +31,7 @@ defmodule GitSync.Knots do
         {:ok, host_key}
 
       nil ->
-        with {:ok, knot} <- pin(connection, %{host: host, ssh_host: host}),
+        with {:ok, knot} <- pin(connection, %{host: host, ssh_host: endpoint(connection, host)}),
              do: {:ok, knot.host_key}
     end
   end
@@ -69,6 +69,12 @@ defmodule GitSync.Knots do
 
   defp host(%Connection{base_url: base_url} = connection, repo),
     do: Client.knot_host(connection, repo) || URI.parse(base_url).host
+
+  defp endpoint(%Connection{base_url: base_url} = connection, host) do
+    appview = URI.parse(base_url).host
+
+    if host != appview and Client.appview_knot?(connection, host), do: appview, else: host
+  end
 
   defp ssh_host(%Connection{} = connection, host) do
     case get(connection, host) do
