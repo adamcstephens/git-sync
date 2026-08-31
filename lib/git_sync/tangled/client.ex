@@ -36,6 +36,29 @@ defmodule GitSync.Tangled.Client do
   end
 
   @impl GitSync.Forge
+  def check(%Connection{did: nil}), do: {:error, "Save the Tangled account again to check it"}
+
+  def check(%Connection{} = connection) do
+    request =
+      GitSync.Http.request(
+        base_url: String.trim_trailing(connection.pds_url, "/"),
+        url: "/xrpc/com.atproto.repo.describeRepo",
+        params: [repo: connection.did]
+      )
+
+    case Req.get(request) do
+      {:ok, %Req.Response{status: 200}} ->
+        :ok
+
+      {:ok, %Req.Response{status: status}} ->
+        {:error, "The repository server returned HTTP #{status}"}
+
+      {:error, exception} ->
+        {:error, Exception.message(exception)}
+    end
+  end
+
+  @impl GitSync.Forge
   def clone_url(%Connection{base_url: base_url}, repo, :read) do
     {_host, path} = split(repo)
 

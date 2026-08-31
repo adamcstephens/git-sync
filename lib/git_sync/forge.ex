@@ -18,6 +18,7 @@ defmodule GitSync.Forge do
   @type headers :: [{String.t(), String.t()}]
 
   @callback list_repos(Connection.t()) :: {:ok, [repo]} | {:error, term}
+  @callback check(Connection.t()) :: :ok | {:error, term}
   @callback clone_url(Connection.t(), String.t(), :read | :write) :: String.t()
   @callback create_webhook(Connection.t(), String.t(), String.t(), String.t()) ::
               {:ok, term} | {:error, term}
@@ -51,6 +52,16 @@ defmodule GitSync.Forge do
   def list_repos(%Connection{} = connection) do
     with {:ok, connection} <- fresh(connection),
          do: impl(connection).list_repos(connection)
+  end
+
+  @doc """
+  Whether the credential still reaches the forge, in one request. Listing
+  repositories answers the same question but pages through everything the
+  account can see, which is far too much work for a status line.
+  """
+  def check(%Connection{} = connection) do
+    with {:ok, connection} <- fresh(connection),
+         do: impl(connection).check(connection)
   end
 
   def clone_url(%Connection{} = connection, repo, mode),

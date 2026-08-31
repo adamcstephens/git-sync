@@ -28,7 +28,7 @@ defmodule GitSyncWeb.ConnectionControllerTest do
     html = html_response(get(conn, ~p"/connections"), 200)
 
     assert html =~ "https://forge.test"
-    assert html =~ "1 repository"
+    assert html =~ "Healthy"
     refute html =~ "alice/git-sync"
   end
 
@@ -45,7 +45,7 @@ defmodule GitSyncWeb.ConnectionControllerTest do
       html = html_response(get(conn, ~p"/connections"), 200)
 
       assert html =~ "github-form"
-      refute html =~ "edit-github"
+      assert html =~ ~s(data-signals="{githubForm: true}")
     end
 
     test "hides the form behind a button once credentials are stored", %{conn: conn} do
@@ -57,7 +57,9 @@ defmodule GitSyncWeb.ConnectionControllerTest do
 
       html = html_response(get(conn, ~p"/connections"), 200)
 
-      assert html =~ "edit-github"
+      assert html =~ ~s(id="edit-github")
+      assert html =~ ~s|data-on:click="$githubForm = !$githubForm"|
+      assert html =~ ~s(data-signals="{githubForm: false}")
       assert html =~ "id-123"
       refute html =~ "secret-456"
       assert closed?(html, "github-application")
@@ -77,7 +79,7 @@ defmodule GitSyncWeb.ConnectionControllerTest do
       assert html =~ "tangled-form"
       assert html =~ "connection[handle]"
       refute html =~ "connection[ssh_key]"
-      refute html =~ "edit-tangled"
+      assert html =~ ~s(data-signals="{tangledForm: true}")
     end
 
     test "saving an account resolves it and reports its health", %{conn: conn} do
@@ -91,7 +93,7 @@ defmodule GitSyncWeb.ConnectionControllerTest do
       html = html_response(get(conn, ~p"/connections"), 200)
 
       assert html =~ "oppi.li"
-      assert html =~ "1 repository"
+      assert html =~ "Healthy"
       refute html =~ "knot1.tangled.sh/oppi.li/git-sync"
     end
 
@@ -101,7 +103,9 @@ defmodule GitSyncWeb.ConnectionControllerTest do
 
       html = html_response(get(conn, ~p"/connections"), 200)
 
-      assert html =~ "edit-tangled"
+      assert html =~ ~s(id="edit-tangled")
+      assert html =~ ~s|data-on:click="$tangledForm = !$tangledForm"|
+      assert html =~ ~s(data-signals="{tangledForm: false}")
       assert closed?(html, "tangled-account")
     end
 
@@ -150,7 +154,8 @@ defmodule GitSyncWeb.ConnectionControllerTest do
 
       assert html =~ "knot1.tangled.sh"
       assert html =~ "tangled.org"
-      assert html =~ "add-knot"
+      assert html =~ ~s(id="add-knot")
+      assert html =~ ~s|data-on:click="$knotForm = !$knotForm"|
       assert closed?(html, "knot-pin")
     end
 
@@ -200,7 +205,8 @@ defmodule GitSyncWeb.ConnectionControllerTest do
       html = html_response(get(conn, ~p"/connections"), 200)
 
       assert html =~ Connections.tangled().public_key
-      assert html =~ "copy-tangled-public-key"
+      assert html =~ ~s(id="copy-tangled-public-key")
+      assert html =~ ~s|data-on:click="navigator.clipboard.writeText($publicKey.textContent)"|
       refute html =~ "BEGIN OPENSSH PRIVATE KEY"
     end
 
@@ -246,9 +252,8 @@ defmodule GitSyncWeb.ConnectionControllerTest do
   end
 
   defp closed?(html, id) do
-    html
-    |> String.split(~s(id="#{id}"))
-    |> Enum.at(1)
-    |> String.starts_with?(~s( data-show=))
+    [_before, rest] = String.split(html, ~s(id="#{id}"), parts: 2)
+
+    String.starts_with?(rest, ~s( data-show=))
   end
 end

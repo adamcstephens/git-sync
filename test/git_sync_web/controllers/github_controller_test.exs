@@ -126,7 +126,7 @@ defmodule GitSyncWeb.GithubControllerTest do
 
       html = html_response(get(conn, ~p"/connections"), 200)
 
-      assert html =~ "Healthy — 1 repository"
+      assert html =~ "Healthy"
       refute html =~ "adam/git-sync"
     end
 

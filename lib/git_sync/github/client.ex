@@ -42,6 +42,18 @@ defmodule GitSync.Github.Client do
   end
 
   @impl GitSync.Forge
+  def check(%Connection{token: nil}), do: {:error, "Connect GitHub to check the account"}
+
+  def check(%Connection{token: token}) do
+    request = request(url: "/user", auth: {:bearer, token})
+
+    case Req.get(request) do
+      {:ok, %Req.Response{status: 200}} -> :ok
+      other -> error(other)
+    end
+  end
+
+  @impl GitSync.Forge
   def clone_url(%Connection{base_url: base_url}, repo, _mode),
     do: String.trim_trailing(base_url, "/") <> "/" <> repo
 

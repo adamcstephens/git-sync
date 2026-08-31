@@ -43,7 +43,7 @@
           id="edit-github"
           type="button"
           variant="secondary"
-          data-on-click="$githubForm = !$githubForm"
+          data-on:click="$githubForm = !$githubForm"
         >
           Edit application
         </.button>
@@ -82,7 +82,7 @@
           id="edit-tangled"
           type="button"
           variant="secondary"
-          data-on-click="$tangledForm = !$tangledForm"
+          data-on:click="$tangledForm = !$tangledForm"
         >
           Edit account
         </.button>
@@ -129,7 +129,7 @@
             id="add-knot"
             type="button"
             variant="secondary"
-            data-on-click="$knotForm = !$knotForm"
+            data-on:click="$knotForm = !$knotForm"
           >
             Add a knot
           </.button>
@@ -168,7 +168,7 @@
           id="copy-tangled-public-key"
           type="button"
           variant="secondary"
-          data-on-click="navigator.clipboard.writeText($publicKey.textContent)"
+          data-on:click="navigator.clipboard.writeText($publicKey.textContent)"
         >
           Copy
         </.button>

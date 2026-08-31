@@ -48,7 +48,9 @@ defmodule GitSyncWeb.ConnectionController do
   def form(changeset), do: to_form(changeset)
 
   # A form kept behind a button still has to open when what was submitted from
-  # it came back with errors.
+  # it came back rejected. A changeset that has never been through the database
+  # carries the errors of the empty form it renders, so the action is what says
+  # a submission was actually tried.
   defp open_forms(assigns) do
     github = assigns[:github]
     tangled = assigns[:tangled]
@@ -56,22 +58,16 @@ defmodule GitSyncWeb.ConnectionController do
     assigns
     |> Keyword.put(
       :github_form_open,
-      assigns[:github_form].source.errors != [] or is_nil(github && github.client_id)
+      submitted?(assigns[:github_form]) or is_nil(github && github.client_id)
     )
-    |> Keyword.put(
-      :tangled_form_open,
-      assigns[:tangled_form].source.errors != [] or is_nil(tangled)
-    )
+    |> Keyword.put(:tangled_form_open, submitted?(assigns[:tangled_form]) or is_nil(tangled))
   end
+
+  defp submitted?(form), do: form.source.action != nil
 
   defp health(%Connection{kind: :github, token: nil}), do: :disconnected
 
-  defp health(%Connection{} = connection) do
-    case Forge.list_repos(connection) do
-      {:ok, repos} -> {:ok, length(repos)}
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  defp health(%Connection{} = connection), do: Forge.check(connection)
 
   defp health(nil), do: nil
 

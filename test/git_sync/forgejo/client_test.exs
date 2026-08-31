@@ -147,4 +147,28 @@ defmodule GitSync.Forgejo.ClientTest do
 
   defp signature(body, secret),
     do: Base.encode16(:crypto.mac(:hmac, :sha256, secret, body), case: :lower)
+
+  describe "check/1" do
+    test "asks for the account behind the token and nothing more" do
+      stub(fn conn ->
+        assert conn.request_path == "/api/v1/user"
+        assert ["Bearer tok"] = Plug.Conn.get_req_header(conn, "authorization")
+
+        Req.Test.json(conn, %{"login" => "adam"})
+      end)
+
+      assert Client.check(@connection) == :ok
+    end
+
+    test "reports the status when the account cannot be read" do
+      stub(&Plug.Conn.send_resp(&1, 401, ""))
+
+      assert Client.check(@connection) == {:error, "Forgejo returned HTTP 401"}
+    end
+
+    test "says so when there is no token to check with" do
+      assert {:error, message} = Client.check(%Connection{base_url: "https://codeberg.org"})
+      assert message =~ "Connect Forgejo"
+    end
+  end
 end

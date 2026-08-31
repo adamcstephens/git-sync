@@ -141,4 +141,29 @@ defmodule GitSync.Github.ClientTest do
 
   defp signature(body, secret),
     do: "sha256=" <> Base.encode16(:crypto.mac(:hmac, :sha256, secret, body), case: :lower)
+
+  describe "check/1" do
+    test "asks for the account behind the token and nothing more" do
+      stub(fn conn ->
+        assert conn.host == "api.github.com"
+        assert conn.request_path == "/user"
+        assert ["Bearer gho_tok"] = Plug.Conn.get_req_header(conn, "authorization")
+
+        Req.Test.json(conn, %{"login" => "adam"})
+      end)
+
+      assert Client.check(@connection) == :ok
+    end
+
+    test "reports the status when the account cannot be read" do
+      stub(&Plug.Conn.send_resp(&1, 401, ""))
+
+      assert Client.check(@connection) == {:error, "GitHub returned HTTP 401"}
+    end
+
+    test "says so when there is no token to check with" do
+      assert {:error, message} = Client.check(%Connection{base_url: "https://github.com"})
+      assert message =~ "Connect GitHub"
+    end
+  end
 end

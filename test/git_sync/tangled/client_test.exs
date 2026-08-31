@@ -138,4 +138,28 @@ defmodule GitSync.Tangled.ClientTest do
 
     assert {:error, :unsupported} = Client.verify_webhook(@connection, [], "{}", "shh")
   end
+
+  describe "check/1" do
+    test "describes the account's repository and nothing more" do
+      stub(fn conn ->
+        assert conn.host == "pds.example"
+        assert conn.request_path == "/xrpc/com.atproto.repo.describeRepo"
+
+        Req.Test.json(conn, %{"did" => "did:plc:abc"})
+      end)
+
+      assert Client.check(@account) == :ok
+    end
+
+    test "reports the status when the repository server will not answer" do
+      stub(&Plug.Conn.send_resp(&1, 502, ""))
+
+      assert Client.check(@account) == {:error, "The repository server returned HTTP 502"}
+    end
+
+    test "says so when no account has been resolved" do
+      assert {:error, message} = Client.check(@connection)
+      assert message =~ "Save the Tangled account"
+    end
+  end
 end

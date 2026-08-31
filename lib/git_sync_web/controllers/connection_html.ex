@@ -17,8 +17,8 @@ defmodule GitSyncWeb.ConnectionHTML do
     ~H"""
     <span id={@id} class="health" data-health={state(@health)}>
       <%= case @health do %>
-        <% {:ok, count} -> %>
-          Healthy — {count} {if count == 1, do: "repository", else: "repositories"}
+        <% :ok -> %>
+          Healthy
         <% {:error, reason} -> %>
           Unreachable — {reason}
         <% :disconnected -> %>
@@ -30,7 +30,7 @@ defmodule GitSyncWeb.ConnectionHTML do
     """
   end
 
-  defp state({:ok, _count}), do: "ok"
+  defp state(:ok), do: "ok"
   defp state({:error, _reason}), do: "error"
   defp state(other), do: to_string(other || "none")
 end
