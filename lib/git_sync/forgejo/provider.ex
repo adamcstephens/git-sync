@@ -6,6 +6,11 @@ defmodule GitSync.Forgejo.Provider do
   started dynamically rather than listed in the application's children. It backs
   off and retries rather than terminating, so a Forgejo instance that is briefly
   unreachable does not leave the app with no way to log in.
+
+  That patience is only worth spending on an issuer that could answer. A
+  development instance points `base_url` at the bare repositories it clones
+  from, and nothing is discoverable over `file://`, so a worker started on one
+  would retry until the instance is shut down.
   """
 
   alias GitSync.Connection
@@ -18,6 +23,14 @@ defmodule GitSync.Forgejo.Provider do
     do: DynamicSupervisor.child_spec(name: @supervisor, strategy: :one_for_one)
 
   def name, do: @worker
+
+  @doc """
+  Whether a connection's Forgejo could be an OIDC issuer.
+  """
+  def issuer?(%Connection{base_url: base_url}),
+    do: URI.parse(base_url).scheme in ["http", "https"]
+
+  def issuer?(nil), do: false
 
   @doc """
   Starts the worker for `issuer`, replacing one pointing at a different issuer.
@@ -42,8 +55,9 @@ defmodule GitSync.Forgejo.Provider do
   """
   def start_configured do
     case Connections.forgejo() do
-      %Connection{client_id: client_id, base_url: base_url} when is_binary(client_id) ->
-        ensure_started(base_url)
+      %Connection{client_id: client_id, base_url: base_url} = connection
+      when is_binary(client_id) ->
+        if issuer?(connection), do: ensure_started(base_url), else: :ignore
 
       _ ->
         :ignore

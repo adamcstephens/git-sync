@@ -4,7 +4,9 @@
     <:subtitle>git-sync is gated by your Forgejo instance.</:subtitle>
   </.header>
 
-  <.button id="sign-in" href={~p"/auth/forgejo"} method="post">Sign in with Forgejo</.button>
+  <.button :if={@forgejo_issuer?} id="sign-in" href={~p"/auth/forgejo"} method="post">
+    Sign in with Forgejo
+  </.button>
 
   <.dev_sign_in />
 </Layouts.app>

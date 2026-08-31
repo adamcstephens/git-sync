@@ -20,7 +20,7 @@ defmodule GitSyncWeb.SessionController do
   plug Oidcc.Plug.AuthorizationCallback, @client when action == :callback
 
   def new(conn, _params) do
-    render(conn, :new)
+    render(conn, :new, forgejo_issuer?: Provider.issuer?(Connections.forgejo()))
   end
 
   def create(conn, _params) do

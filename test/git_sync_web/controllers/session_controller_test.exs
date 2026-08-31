@@ -13,6 +13,19 @@ defmodule GitSyncWeb.SessionControllerTest do
     assert html_response(conn, 200) =~ "Sign in with Forgejo"
   end
 
+  test "the page does not offer a Forgejo that cannot be an issuer", %{
+    conn: conn,
+    connection: connection
+  } do
+    connection
+    |> Ecto.Changeset.change(base_url: "file:///srv/dev_repos/forgejo")
+    |> GitSync.Repo.update!()
+
+    conn = get(conn, ~p"/login")
+
+    refute html_response(conn, 200) =~ "Sign in with Forgejo"
+  end
+
   describe "with a live provider" do
     setup %{connection: connection} do
       issuer = OidcProvider.start(subject: "alice", client_id: connection.client_id)
