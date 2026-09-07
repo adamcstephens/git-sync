@@ -41,8 +41,14 @@ defmodule GitSync.Forgejo.Oidc do
            connection.client_secret,
            %{expected_subject: connection.subject}
          ) do
-      {:ok, token} -> {:ok, token(token)}
-      {:error, reason} -> {:error, "Forgejo refused the refresh token: #{inspect(reason)}"}
+      {:ok, token} ->
+        {:ok, token(token)}
+
+      {:error, {:http_error, 400, %{"error" => "invalid_grant"}} = reason} ->
+        {:error, "Forgejo must be reconnected by signing in again: #{inspect(reason)}"}
+
+      {:error, reason} ->
+        {:error, "Forgejo refused the refresh token: #{inspect(reason)}"}
     end
   end
 

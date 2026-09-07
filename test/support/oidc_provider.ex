@@ -19,15 +19,28 @@ defmodule GitSync.OidcProvider do
   Starts the provider on a random port and returns its issuer URL.
   """
   def start(subject: subject, client_id: client_id) do
-    {:ok, _agent} =
-      Agent.start_link(
-        fn ->
-          %{jwk: JOSE.JWK.generate_key({:rsa, 2048}), subject: subject, client_id: client_id}
-        end,
-        name: @state
-      )
+    ExUnit.Callbacks.start_supervised!(%{
+      id: @state,
+      start:
+        {Agent, :start_link,
+         [
+           fn ->
+             %{
+               jwk: JOSE.JWK.generate_key({:rsa, 2048}),
+               subject: subject,
+               client_id: client_id,
+               refresh_token: "forgejo-refresh-token",
+               generation: 0,
+               refresh_observer: nil
+             }
+           end,
+           [name: @state]
+         ]}
+    })
 
-    {:ok, server} = Bandit.start_link(plug: __MODULE__, port: 0, startup_log: false)
+    server =
+      ExUnit.Callbacks.start_supervised!({Bandit, plug: __MODULE__, port: 0, startup_log: false})
+
     {:ok, {_ip, port}} = ThousandIsland.listener_info(server)
 
     issuer = "http://127.0.0.1:#{port}"
@@ -45,6 +58,9 @@ defmodule GitSync.OidcProvider do
   The PKCE code verifier seen on the token request.
   """
   def code_verifier, do: Agent.get(@state, & &1[:code_verifier])
+
+  def pause_refresh(observer),
+    do: Agent.update(@state, &%{&1 | refresh_observer: observer})
 
   get "/.well-known/openid-configuration" do
     issuer = get(:issuer)
@@ -91,17 +107,48 @@ defmodule GitSync.OidcProvider do
   end
 
   defp refresh(conn) do
-    if conn.body_params["refresh_token"] == "forgejo-refresh-token" do
-      json(conn, %{
-        access_token: "forgejo-renewed-token",
-        refresh_token: "forgejo-next-refresh-token",
-        expires_in: 3600,
-        token_type: "Bearer",
-        id_token: id_token(),
-        scope: "openid profile email"
-      })
-    else
-      conn |> put_status(400) |> json(%{error: "invalid_grant"})
+    result =
+      Agent.get_and_update(@state, fn provider ->
+        if conn.body_params["refresh_token"] == provider.refresh_token do
+          generation = provider.generation + 1
+          refresh_token = "forgejo-refresh-token-#{generation}"
+
+          {{:ok, generation, refresh_token, provider.refresh_observer},
+           %{
+             provider
+             | generation: generation,
+               refresh_token: refresh_token,
+               refresh_observer: nil
+           }}
+        else
+          {:error, provider}
+        end
+      end)
+
+    case result do
+      {:ok, generation, refresh_token, observer} ->
+        if observer do
+          ref = make_ref()
+          send(observer, {:refresh_started, self(), ref})
+
+          receive do
+            {^ref, :continue} -> :ok
+          end
+        end
+
+        json(conn, %{
+          access_token: "forgejo-access-token-#{generation}",
+          refresh_token: refresh_token,
+          expires_in: 3600,
+          token_type: "Bearer",
+          id_token: id_token(),
+          scope: "openid profile email"
+        })
+
+      :error ->
+        conn
+        |> put_status(400)
+        |> json(%{error: "invalid_grant", error_description: "cannot increase the grant counter"})
     end
   end
 

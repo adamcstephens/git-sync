@@ -126,12 +126,39 @@ defmodule GitSync.Connections do
   end
 
   @doc """
+  Renews the current stored credential once per connection, even when callers
+  hold an older snapshot. A login or disconnect completed during the request
+  takes precedence over its result.
+  """
+  def refresh_token(%Connection{} = connection, refresh_fun) do
+    with_connection(connection, :refresh, fn current ->
+      token = token(current)
+
+      if token && Token.spent?(token),
+        do: refresh_and_store(current, token, refresh_fun),
+        else: {:ok, current}
+    end)
+  end
+
+  defp refresh_and_store(%Connection{} = connection, previous, refresh_fun) do
+    result = refresh_fun.(connection)
+
+    with_connection(connection, :token, fn current ->
+      with true <- token(current) == previous,
+           {:ok, token} <- result do
+        write_token(current, token)
+      else
+        false -> {:ok, current}
+        {:error, reason} -> {:error, reason}
+      end
+    end)
+  end
+
+  @doc """
   Stores a credential obtained over OAuth.
   """
   def store_token(%Connection{} = connection, token) do
-    connection
-    |> Ecto.Changeset.change(token_attrs(token))
-    |> Repo.update()
+    with_connection(connection, :token, &write_token(&1, token))
   end
 
   @doc """
@@ -143,15 +170,33 @@ defmodule GitSync.Connections do
   Records a completed login. The first Forgejo user to sign in claims the
   operator seat; everyone after them is refused.
   """
-  def record_login(%Connection{operator: seat} = connection, operator, %Token{} = token)
-      when is_nil(seat) or seat == operator do
+  def record_login(%Connection{} = connection, operator, %Token{} = token) do
+    with_connection(connection, :token, fn current ->
+      case current.operator do
+        seat when is_nil(seat) or seat == operator ->
+          current
+          |> Ecto.Changeset.change([{:operator, operator} | token_attrs(token)])
+          |> Repo.update()
+
+        seat ->
+          {:error, {:claimed_by, seat}}
+      end
+    end)
+  end
+
+  defp write_token(%Connection{} = connection, token) do
     connection
-    |> Ecto.Changeset.change([{:operator, operator} | token_attrs(token)])
+    |> Ecto.Changeset.change(token_attrs(token))
     |> Repo.update()
   end
 
-  def record_login(%Connection{operator: seat}, _operator, %Token{}),
-    do: {:error, {:claimed_by, seat}}
+  defp with_connection(%Connection{} = connection, operation, fun) do
+    :global.trans(
+      {{__MODULE__, operation, connection.id}, self()},
+      fn -> fun.(Repo.get!(Connection, connection.id)) end,
+      [node()]
+    )
+  end
 
   defp token_attrs(nil),
     do: [token: nil, refresh_token: nil, token_expires_at: nil, subject: nil]

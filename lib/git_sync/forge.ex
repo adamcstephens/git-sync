@@ -42,12 +42,8 @@ defmodule GitSync.Forge do
   The connection with a working access token, renewing it first if the one on
   hand is spent.
   """
-  def fresh(%Connection{} = connection) do
-    case Connections.token(connection) do
-      nil -> {:ok, connection}
-      token -> if Token.spent?(token), do: renew(connection, token), else: {:ok, connection}
-    end
-  end
+  def fresh(%Connection{} = connection),
+    do: Connections.refresh_token(connection, &renew/1)
 
   def list_repos(%Connection{} = connection) do
     with {:ok, connection} <- fresh(connection),
@@ -75,14 +71,11 @@ defmodule GitSync.Forge do
   def verify_webhook(%Connection{} = connection, headers, body, secret),
     do: impl(connection).verify_webhook(connection, headers, body, secret)
 
-  defp renew(%Connection{} = connection, %Token{refresh: nil}) do
+  defp renew(%Connection{refresh_token: nil} = connection) do
     {:error,
      "#{@names[connection.kind]} must be reconnected: its access token has expired and no " <>
        "refresh token was stored."}
   end
 
-  defp renew(%Connection{} = connection, %Token{}) do
-    with {:ok, token} <- impl(connection).refresh(connection),
-         do: Connections.store_token(connection, token)
-  end
+  defp renew(%Connection{} = connection), do: impl(connection).refresh(connection)
 end
