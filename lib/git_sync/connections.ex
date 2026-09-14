@@ -23,6 +23,14 @@ defmodule GitSync.Connections do
 
   def tangled, do: get(:tangled)
 
+  def pushin, do: get(:pushin)
+
+  def configure_pushin(attrs) do
+    (pushin() || %Connection{})
+    |> Connection.pushin_changeset(attrs)
+    |> Repo.insert_or_update()
+  end
+
   @doc """
   Whether the first-run wizard has been completed.
   """

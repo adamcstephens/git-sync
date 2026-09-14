@@ -60,6 +60,53 @@
     </div>
   </section>
 
+  <section class="connection" id="pushin" data-signals={"{pushinForm: #{@pushin_form_open}}"}>
+    <.header>
+      Pushin.eu
+      <:subtitle>
+        Use a personal access token from Pushin.eu to list repositories and mirror over HTTPS.
+        Git authentication uses the username <code>git</code> automatically.
+      </:subtitle>
+    </.header>
+
+    <.list>
+      <:item title="Instance">https://pushin.eu</:item>
+      <:item title="Health"><.health id="pushin-health" health={@pushin_health} /></:item>
+    </.list>
+
+    <div :if={@pushin && @pushin.token} class="actions">
+      <.button id="disconnect-pushin" href={~p"/connections/pushin"} method="delete">
+        Disconnect Pushin.eu
+      </.button>
+      <.button
+        id="edit-pushin"
+        type="button"
+        variant="secondary"
+        data-on:click="$pushinForm = !$pushinForm"
+      >
+        Replace token
+      </.button>
+    </div>
+
+    <div id="pushin-credentials" data-show="$pushinForm">
+      <.form for={@pushin_form} id="pushin-form" action={~p"/connections/pushin"} method="post">
+        <.input
+          field={@pushin_form[:token]}
+          id="pushin-token"
+          type="password"
+          label="Personal access token"
+          value=""
+          autocomplete="new-password"
+          required
+        />
+
+        <.button id="save-pushin" type="submit">
+          {if @pushin && @pushin.token, do: "Replace token", else: "Save token"}
+        </.button>
+      </.form>
+    </div>
+  </section>
+
   <section class="connection" id="tangled" data-signals={"{tangledForm: #{@tangled_form_open}}"}>
     <.header>
       Tangled

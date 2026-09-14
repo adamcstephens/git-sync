@@ -66,6 +66,89 @@ defmodule GitSyncWeb.ConnectionControllerTest do
     end
   end
 
+  describe "pushin" do
+    setup do
+      Req.Test.stub(GitSync.Http, &Req.Test.json(&1, %{"login" => "alice", "id" => "user-1"}))
+      :ok
+    end
+
+    test "saves a PAT without asking for an account and never renders it", %{conn: conn} do
+      saved =
+        post(conn, ~p"/connections/pushin", %{
+          "connection" => %{"token" => "pushin-secret"}
+        })
+
+      assert redirected_to(saved) == ~p"/connections"
+      assert Connections.pushin().token == "pushin-secret"
+
+      html = html_response(get(conn, ~p"/connections"), 200)
+      assert html =~ "Pushin.eu"
+      assert html =~ ~s(id="disconnect-pushin")
+      assert html =~ ~s(id="edit-pushin")
+      refute html =~ "pushin-secret"
+      assert html =~ ~s(type="password" name="connection[token]")
+    end
+
+    test "rejects a blank replacement without exposing or clearing the saved PAT", %{conn: conn} do
+      {:ok, pushin} = Connections.configure_pushin(%{"token" => "saved-pushin-secret"})
+
+      rejected = post(conn, ~p"/connections/pushin", %{"connection" => %{"token" => ""}})
+      html = html_response(rejected, 200)
+
+      assert html =~ "can&#39;t be blank"
+      refute html =~ "saved-pushin-secret"
+      assert Connections.pushin().token == pushin.token
+      assert html =~ ~s(data-signals="{pushinForm: true}")
+    end
+
+    test "replaces the PAT on the same connection", %{conn: conn} do
+      {:ok, pushin} = Connections.configure_pushin(%{"token" => "old-pushin-secret"})
+
+      saved =
+        post(conn, ~p"/connections/pushin", %{
+          "connection" => %{"token" => "replacement-pushin-secret"}
+        })
+
+      assert redirected_to(saved) == ~p"/connections"
+      assert Connections.pushin().id == pushin.id
+      assert Connections.pushin().token == "replacement-pushin-secret"
+
+      html = html_response(get(conn, ~p"/connections"), 200)
+      refute html =~ "old-pushin-secret"
+      refute html =~ "replacement-pushin-secret"
+    end
+
+    test "disconnects without deleting the connection and offers a new token", %{conn: conn} do
+      {:ok, pushin} = Connections.configure_pushin(%{"token" => "pushin-secret"})
+
+      disconnected = delete(conn, ~p"/connections/pushin")
+      assert redirected_to(disconnected) == ~p"/connections"
+      assert Connections.pushin().id == pushin.id
+      assert Connections.pushin().token == nil
+
+      html = html_response(get(conn, ~p"/connections"), 200)
+      refute html =~ ~s(id="disconnect-pushin")
+      assert html =~ ~s(data-health="disconnected")
+      assert html =~ ~s(data-signals="{pushinForm: true}")
+    end
+
+    test "requires an authenticated operator to save or disconnect", %{conn: conn} do
+      anonymous = clear_session(conn)
+
+      rejected =
+        post(anonymous, ~p"/connections/pushin", %{
+          "connection" => %{"token" => "pushin-secret"}
+        })
+
+      assert redirected_to(rejected) == ~p"/login"
+      assert Connections.pushin() == nil
+
+      {:ok, pushin} = Connections.configure_pushin(%{"token" => "pushin-secret"})
+      assert redirected_to(delete(anonymous, ~p"/connections/pushin")) == ~p"/login"
+      assert Connections.pushin().token == pushin.token
+    end
+  end
+
   describe "tangled" do
     setup %{conn: conn} do
       Req.Test.stub(GitSync.Http, &Plug.Conn.send_resp(&1, 401, ""))

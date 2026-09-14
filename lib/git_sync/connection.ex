@@ -7,7 +7,7 @@ defmodule GitSync.Connection do
 
   import Ecto.Changeset
 
-  @kinds [:forgejo, :github, :tangled]
+  @kinds [:forgejo, :github, :tangled, :pushin]
 
   @appview "https://tangled.org"
 
@@ -38,6 +38,16 @@ defmodule GitSync.Connection do
     |> validate_required([:kind, :base_url])
     |> validate_change(:base_url, &validate_url/2)
     |> unique_constraint(:kind)
+  end
+
+  def pushin_changeset(%__MODULE__{} = connection, attrs) do
+    connection
+    |> changeset(%{
+      "kind" => :pushin,
+      "base_url" => "https://pushin.eu",
+      "token" => Map.get(attrs, "token")
+    })
+    |> validate_required([:token])
   end
 
   @doc """

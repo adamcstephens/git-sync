@@ -10,6 +10,20 @@ defmodule GitSync.ConnectionsTest do
     "client_secret" => "shh"
   }
 
+  test "Pushin token replacement rejects blank submissions without losing the credential" do
+    assert {:ok, first} = Connections.configure_pushin(%{"token" => "first-pat"})
+    assert {:error, changeset} = Connections.configure_pushin(%{"token" => ""})
+    assert "can't be blank" in errors_on(changeset).token
+    assert Connections.pushin().token == "first-pat"
+
+    assert {:ok, second} = Connections.configure_pushin(%{"token" => "second-pat"})
+    assert second.id == first.id
+    assert Connections.pushin().token == "second-pat"
+
+    assert {:ok, _} = Connections.disconnect(second)
+    assert Connections.pushin().token == nil
+  end
+
   test "is unconfigured until the wizard saves client credentials" do
     refute Connections.configured?()
 

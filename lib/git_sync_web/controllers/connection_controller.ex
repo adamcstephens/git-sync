@@ -19,9 +19,11 @@ defmodule GitSyncWeb.ConnectionController do
   def render_index(conn, overrides \\ []) do
     forgejo = Connections.forgejo()
     github = Connections.github()
+    pushin = Connections.pushin()
     tangled = Connections.tangled()
 
     github_form = form(Connection.oauth_changeset(%Connection{}, %{}))
+    pushin_form = form(Connection.pushin_changeset(%Connection{}, %{}))
     tangled_form = form(Connection.tangled_changeset(tangled || %Connection{}, %{}))
 
     assigns =
@@ -32,6 +34,9 @@ defmodule GitSyncWeb.ConnectionController do
           github: github,
           github_health: health(github),
           github_form: github_form,
+          pushin: pushin,
+          pushin_health: health(pushin),
+          pushin_form: pushin_form,
           tangled: tangled,
           tangled_health: health(tangled),
           tangled_knots: knots(tangled),
@@ -53,6 +58,7 @@ defmodule GitSyncWeb.ConnectionController do
   # a submission was actually tried.
   defp open_forms(assigns) do
     github = assigns[:github]
+    pushin = assigns[:pushin]
     tangled = assigns[:tangled]
 
     assigns
@@ -60,12 +66,17 @@ defmodule GitSyncWeb.ConnectionController do
       :github_form_open,
       submitted?(assigns[:github_form]) or is_nil(github && github.client_id)
     )
+    |> Keyword.put(
+      :pushin_form_open,
+      submitted?(assigns[:pushin_form]) or is_nil(pushin && pushin.token)
+    )
     |> Keyword.put(:tangled_form_open, submitted?(assigns[:tangled_form]) or is_nil(tangled))
   end
 
   defp submitted?(form), do: form.source.action != nil
 
-  defp health(%Connection{kind: :github, token: nil}), do: :disconnected
+  defp health(%Connection{kind: kind, token: nil}) when kind in [:github, :pushin],
+    do: :disconnected
 
   defp health(%Connection{} = connection), do: Forge.check(connection)
 

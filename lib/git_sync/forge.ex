@@ -25,12 +25,13 @@ defmodule GitSync.Forge do
   @callback verify_webhook(Connection.t(), headers, binary, String.t()) :: :ok | {:error, term}
   @callback refresh(Connection.t()) :: {:ok, Token.t()} | {:error, term}
 
-  @names %{forgejo: "Forgejo", github: "GitHub", tangled: "Tangled"}
+  @names %{forgejo: "Forgejo", github: "GitHub", tangled: "Tangled", pushin: "Pushin.eu"}
 
   @impls %{
     forgejo: GitSync.Forgejo.Client,
     github: GitSync.Github.Client,
-    tangled: GitSync.Tangled.Client
+    tangled: GitSync.Tangled.Client,
+    pushin: GitSync.Pushin.Client
   }
 
   @doc """

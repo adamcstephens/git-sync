@@ -5,7 +5,7 @@ if Application.compile_env(:git_sync, :dev_routes) do
     pages that are driven by a forge's API render without a forge anywhere near
     them. `config/dev.exs` installs it as the plug `GitSync.Http` builds each
     request against, which is also what stops a dev instance reaching the real
-    Forgejo, GitHub or atproto hosts it is configured with.
+    Forgejo, GitHub, Pushin.eu or atproto hosts it is configured with.
 
     What it holds is what `GitSync.DevSeeds` seeded, and the only credential it
     accepts is `GitSync.DevSeeds.token/0`.
@@ -40,6 +40,23 @@ if Application.compile_env(:git_sync, :dev_routes) do
         {path, []} -> path
       end
     end
+
+    defp answer(["api", "v1", "user"], %Plug.Conn{host: "pushin.eu"} = conn),
+      do: authorized(conn, account())
+
+    defp answer(["api", "v1", "user", "repos"], %Plug.Conn{host: "pushin.eu"} = conn) do
+      authorized(conn, [
+        %{
+          id: "pushin-dev-repo",
+          full_name: "acme/pushin-mirror",
+          clone_url: "https://git.pushin.eu/acme/pushin-mirror.git",
+          private: true
+        }
+      ])
+    end
+
+    defp answer(_path, %Plug.Conn{host: "pushin.eu"}),
+      do: {404, %{message: "GitSync.DevForge stands in for no such Pushin.eu endpoint"}}
 
     defp answer(["api", "v1", "user"], conn), do: authorized(conn, account())
     defp answer(["api", "v1", "user", "repos"], conn), do: authorized(conn, repos(:forgejo))

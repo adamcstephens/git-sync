@@ -62,6 +62,8 @@ defmodule GitSyncWeb.Router do
     get "/connections", ConnectionController, :index
     post "/connections/github", GithubController, :create
     delete "/connections/github", GithubController, :delete
+    post "/connections/pushin", PushinController, :create
+    delete "/connections/pushin", PushinController, :delete
     post "/connections/tangled", TangledController, :create
     post "/connections/tangled/key", TangledController, :generate
     post "/connections/tangled/knots", TangledController, :pin

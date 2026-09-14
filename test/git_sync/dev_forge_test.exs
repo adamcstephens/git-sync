@@ -46,6 +46,24 @@ defmodule GitSync.DevForgeTest do
     assert {:ok, [%{full_name: "acme/mirror"}]} = Forge.list_repos(github)
   end
 
+  test "distinguishes Pushin repositories from Forgejo on their shared API path" do
+    {:ok, pushin} = Connections.configure_pushin(%{"token" => DevSeeds.token()})
+
+    assert Forge.check(pushin) == :ok
+
+    assert {:ok, [%{full_name: "acme/pushin-mirror", clone_url: clone_url}]} =
+             Forge.list_repos(pushin)
+
+    assert clone_url == "https://git.pushin.eu/acme/pushin-mirror.git"
+    assert {:ok, [%{full_name: "acme/upstream"}]} = Forge.list_repos(Connections.forgejo())
+  end
+
+  test "refuses an unknown Pushin token without contacting the service" do
+    {:ok, pushin} = Connections.configure_pushin(%{"token" => "not-a-dev-token"})
+
+    assert {:error, _reason} = Forge.check(pushin)
+  end
+
   test "resolves the handle the seeded Tangled account was saved under" do
     tangled = Connections.tangled()
 

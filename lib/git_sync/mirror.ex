@@ -97,6 +97,7 @@ defmodule GitSync.Mirror do
 
   defp credentials(:github, token), do: "x-access-token:" <> token
   defp credentials(:forgejo, token), do: token <> ":"
+  defp credentials(:pushin, token), do: "git:" <> token
 
   defp fetch(%Source{connection: connection} = source) do
     workspace = workspace(source)

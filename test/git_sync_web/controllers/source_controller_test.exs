@@ -64,6 +64,23 @@ defmodule GitSyncWeb.SourceControllerTest do
       assert html =~ "https://github.com"
     end
 
+    test "offers Pushin as both source and destination", %{conn: conn} do
+      {:ok, pushin} = GitSync.Connections.configure_pushin(%{"token" => "pushin-secret"})
+      html = html_response(get(conn, ~p"/sources"), 200)
+
+      for field <- ["source_connection_id", "destination_connection_id"] do
+        select =
+          html
+          |> String.split(~s(id="#{field}"))
+          |> Enum.at(1)
+          |> String.split("</select>")
+          |> hd()
+
+        assert select =~ ~s(value="#{pushin.id}")
+        assert select =~ "https://pushin.eu"
+      end
+    end
+
     test "asks for a forge before a repository, with nothing to autofill", %{conn: conn} do
       html = html_response(get(conn, ~p"/sources"), 200)
 
@@ -84,6 +101,34 @@ defmodule GitSyncWeb.SourceControllerTest do
       assert response(conn, 200) =~ "event: datastar-patch-elements"
       assert response(conn, 200) =~ ~s(id="source-repo-field")
       assert response(conn, 200) =~ ~s(<option value="adam/git-sync")
+    end
+
+    test "lists Pushin repositories for source and destination selection", %{conn: conn} do
+      {:ok, pushin} = GitSync.Connections.configure_pushin(%{"token" => "pushin-secret"})
+
+      Req.Test.stub(GitSync.Http, fn request ->
+        assert request.host == "pushin.eu"
+        assert request.request_path == "/api/v1/user/repos"
+        assert get_req_header(request, "authorization") == ["Bearer pushin-secret"]
+
+        Req.Test.json(request, [
+          %{
+            "id" => "repo-1",
+            "full_name" => "alice/pushin-repo",
+            "clone_url" => "https://git.pushin.eu/alice/pushin-repo.git",
+            "private" => true
+          }
+        ])
+      end)
+
+      for provider <- ["source", "destination"] do
+        signals = JSON.encode!(%{"#{provider}_connection_id" => to_string(pushin.id)})
+        body = response(get(conn, ~p"/sources/repos?datastar=#{signals}"), 200)
+
+        assert body =~ ~s(id="#{provider}-repo-field")
+        assert body =~ ~s(<option value="alice/pushin-repo")
+        refute body =~ "pushin-secret"
+      end
     end
 
     test "lets the repositories be searched by typing", %{conn: conn, forgejo: forgejo} do
