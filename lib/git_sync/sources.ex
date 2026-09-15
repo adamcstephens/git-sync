@@ -4,6 +4,7 @@ defmodule GitSync.Sources do
   """
 
   import Ecto.Query
+  require Logger
 
   alias GitSync.Forge
   alias GitSync.Repo
@@ -75,6 +76,32 @@ defmodule GitSync.Sources do
       {:ok, id} -> source |> Ecto.Changeset.change(webhook_id: to_string(id)) |> Repo.update()
       {:error, :unsupported} -> {:ok, source}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def reconcile_webhooks do
+    Source
+    |> join(:inner, [source], connection in assoc(source, :connection))
+    |> where(
+      [source, connection],
+      connection.kind == :forgejo and not is_nil(source.webhook_id)
+    )
+    |> preload([_source, connection], connection: connection)
+    |> Repo.all()
+    |> Enum.each(&reconcile_webhook/1)
+  end
+
+  defp reconcile_webhook(%Source{} = source) do
+    case Forge.reconcile_webhook(source.connection, source.repo, source.webhook_id) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          msg: "Webhook reconciliation failed",
+          source_id: to_string(source.id),
+          error: inspect(reason, limit: :infinity)
+        )
     end
   end
 end

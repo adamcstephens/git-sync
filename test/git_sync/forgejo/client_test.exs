@@ -117,6 +117,36 @@ defmodule GitSync.Forgejo.ClientTest do
     end
   end
 
+  describe "reconcile_webhook/3" do
+    test "adds missing branch lifecycle events to an existing hook" do
+      stub(fn conn ->
+        assert conn.request_path == "/api/v1/repos/adam/git-sync/hooks/7"
+
+        case conn.method do
+          "GET" ->
+            Req.Test.json(conn, %{"events" => ["push"]})
+
+          "PATCH" ->
+            {:ok, body, conn} = Plug.Conn.read_body(conn)
+            assert JSON.decode!(body) == %{"events" => ["push", "create", "delete"]}
+            Req.Test.json(conn, %{"id" => 7})
+        end
+      end)
+
+      assert :ok = Client.reconcile_webhook(@connection, "adam/git-sync", "7")
+    end
+
+    test "can repeatedly reconcile a complete hook without modifying it" do
+      stub(fn conn ->
+        assert conn.method == "GET"
+        Req.Test.json(conn, %{"events" => ["push", "create", "delete"]})
+      end)
+
+      assert :ok = Client.reconcile_webhook(@connection, "adam/git-sync", "7")
+      assert :ok = Client.reconcile_webhook(@connection, "adam/git-sync", "7")
+    end
+  end
+
   describe "verify_webhook/4" do
     test "accepts a body matching the signature header" do
       body = ~s({"ref":"refs/heads/main"})

@@ -22,6 +22,8 @@ defmodule GitSync.Forge do
   @callback clone_url(Connection.t(), String.t(), :read | :write) :: String.t()
   @callback create_webhook(Connection.t(), String.t(), String.t(), String.t()) ::
               {:ok, term} | {:error, term}
+  @callback reconcile_webhook(Connection.t(), String.t(), String.t()) ::
+              :ok | {:error, term}
   @callback verify_webhook(Connection.t(), headers, binary, String.t()) :: :ok | {:error, term}
   @callback refresh(Connection.t()) :: {:ok, Token.t()} | {:error, term}
 
@@ -67,6 +69,11 @@ defmodule GitSync.Forge do
   def create_webhook(%Connection{} = connection, repo, url, secret) do
     with {:ok, connection} <- fresh(connection),
          do: impl(connection).create_webhook(connection, repo, url, secret)
+  end
+
+  def reconcile_webhook(%Connection{} = connection, repo, webhook_id) do
+    with {:ok, connection} <- fresh(connection),
+         do: impl(connection).reconcile_webhook(connection, repo, webhook_id)
   end
 
   def verify_webhook(%Connection{} = connection, headers, body, secret),

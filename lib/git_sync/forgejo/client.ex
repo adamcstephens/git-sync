@@ -11,6 +11,7 @@ defmodule GitSync.Forgejo.Client do
   alias GitSync.Forge.Webhook
 
   @signature_headers ["x-forgejo-signature", "x-gitea-signature"]
+  @webhook_events ["push", "create", "delete"]
 
   @doc """
   Lists the repositories the connected operator can access.
@@ -65,7 +66,7 @@ defmodule GitSync.Forgejo.Client do
         json: %{
           type: "forgejo",
           active: true,
-          events: ["push", "create", "delete"],
+          events: @webhook_events,
           config: %{url: url, content_type: "json", secret: secret}
         }
       )
@@ -80,11 +81,42 @@ defmodule GitSync.Forgejo.Client do
   end
 
   @impl GitSync.Forge
+  def reconcile_webhook(%Connection{token: token} = connection, repo, webhook_id) do
+    request =
+      request(connection,
+        url: "/api/v1/repos/#{repo}/hooks/#{webhook_id}",
+        auth: {:bearer, token}
+      )
+
+    case Req.get(request) do
+      {:ok, %Req.Response{status: 200, body: %{"events" => events}}}
+      when is_list(events) ->
+        missing_events = @webhook_events -- events
+
+        if missing_events == [] do
+          :ok
+        else
+          update_webhook(request, events ++ missing_events)
+        end
+
+      other ->
+        error(other)
+    end
+  end
+
+  @impl GitSync.Forge
   defdelegate refresh(connection), to: GitSync.Forgejo.Oidc
 
   @impl GitSync.Forge
   def verify_webhook(%Connection{}, headers, body, secret),
     do: Webhook.verify_hmac_sha256(headers, body, secret, @signature_headers)
+
+  defp update_webhook(request, events) do
+    case Req.patch(request, json: %{events: events}) do
+      {:ok, %Req.Response{status: status}} when status in 200..299 -> :ok
+      other -> error(other)
+    end
+  end
 
   defp request(%Connection{base_url: base_url}, options),
     do: GitSync.Http.request([base_url: String.trim_trailing(base_url, "/")] ++ options)

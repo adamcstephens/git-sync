@@ -132,6 +132,40 @@ defmodule GitSync.SourcesTest do
     end
   end
 
+  describe "reconcile_webhooks/0" do
+    test "reconciles stored Forgejo hooks without replacing them", %{
+      forgejo: forgejo,
+      github: github
+    } do
+      {:ok, forgejo_source} = Sources.create(attrs(forgejo))
+      {:ok, github_source} = Sources.create(attrs(github, repo: "adam/github"))
+
+      forgejo_source =
+        forgejo_source
+        |> Ecto.Changeset.change(webhook_id: "42")
+        |> Repo.update!()
+
+      github_source
+      |> Ecto.Changeset.change(webhook_id: "99")
+      |> Repo.update!()
+
+      Req.Test.stub(GitSync.Http, fn conn ->
+        assert conn.request_path == "/api/v1/repos/adam/git-sync/hooks/42"
+
+        case conn.method do
+          "GET" ->
+            Req.Test.json(conn, %{"events" => ["push"]})
+
+          "PATCH" ->
+            Req.Test.json(conn, %{"id" => 42})
+        end
+      end)
+
+      assert :ok = Sources.reconcile_webhooks()
+      assert Sources.get(forgejo_source.id).webhook_id == "42"
+    end
+  end
+
   defp attrs(connection, overrides \\ []),
     do: Enum.into(overrides, %{connection_id: connection.id, repo: "adam/git-sync"})
 

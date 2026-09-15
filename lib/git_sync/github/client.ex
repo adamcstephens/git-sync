@@ -81,6 +81,8 @@ defmodule GitSync.Github.Client do
   end
 
   @impl GitSync.Forge
+  def reconcile_webhook(%Connection{}, _repo, _webhook_id), do: {:error, :unsupported}
+  @impl GitSync.Forge
   defdelegate refresh(connection), to: GitSync.Github.OAuth
 
   @impl GitSync.Forge

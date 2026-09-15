@@ -15,6 +15,10 @@ defmodule GitSync.Application do
       GitSync.Repo,
       {Ecto.Migrator,
        repos: Application.fetch_env!(:git_sync, :ecto_repos), skip: skip_migrations?()},
+      Supervisor.child_spec(
+        {Task, &GitSync.Sources.reconcile_webhooks/0},
+        id: GitSync.WebhookReconciler
+      ),
       {Phoenix.PubSub, name: GitSync.PubSub},
       GitSync.Forgejo.Provider,
       GitSync.Sync,

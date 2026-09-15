@@ -54,6 +54,9 @@ defmodule GitSync.Pushin.Client do
   def create_webhook(%Connection{}, _repo, _url, _secret), do: {:error, :unsupported}
 
   @impl GitSync.Forge
+  def reconcile_webhook(%Connection{}, _repo, _webhook_id), do: {:error, :unsupported}
+
+  @impl GitSync.Forge
   def verify_webhook(%Connection{}, _headers, _body, _secret), do: {:error, :unsupported}
 
   @impl GitSync.Forge
