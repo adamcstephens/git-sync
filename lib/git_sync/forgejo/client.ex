@@ -65,7 +65,7 @@ defmodule GitSync.Forgejo.Client do
         json: %{
           type: "forgejo",
           active: true,
-          events: ["push"],
+          events: ["push", "create", "delete"],
           config: %{url: url, content_type: "json", secret: secret}
         }
       )

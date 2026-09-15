@@ -80,7 +80,7 @@ defmodule GitSync.Forgejo.ClientTest do
   end
 
   describe "create_webhook/4" do
-    test "registers a push webhook on the repository" do
+    test "registers push and branch lifecycle events on the repository" do
       stub(fn conn ->
         assert conn.method == "POST"
         assert conn.request_path == "/api/v1/repos/adam/git-sync/hooks"
@@ -88,7 +88,7 @@ defmodule GitSync.Forgejo.ClientTest do
 
         assert %{
                  "type" => "forgejo",
-                 "events" => ["push"],
+                 "events" => ["push", "create", "delete"],
                  "config" => %{"url" => "https://sync.example/hooks/1", "secret" => "shh"}
                } = JSON.decode!(body)
 
