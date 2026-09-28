@@ -47,7 +47,7 @@ defmodule GitSync.MixProject do
       {:phoenix, "~> 1.8.13"},
       {:phoenix_ecto, "~> 4.7"},
       {:ecto_sql, "~> 3.14"},
-      {:ecto_sqlite3, "~> 0.24.1"},
+      {:ecto_sqlite3, "~> 0.25.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.0"},
