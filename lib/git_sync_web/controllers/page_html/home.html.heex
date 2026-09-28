@@ -1,6 +1,102 @@
 <Layouts.app flash={@flash} current_operator={@current_operator}>
-  <.header>
-    git-sync
-    <:subtitle>One-way mirror of git repositories between forges.</:subtitle>
-  </.header>
+  <% destinations = Enum.flat_map(@sources, & &1.destinations) %>
+  <% enabled_sources = Enum.count(@sources, & &1.enabled) %>
+  <% enabled_destinations = Enum.count(destinations, & &1.enabled) %>
+
+  <div class="dashboard-stats" aria-label="Mirror configuration totals">
+    <section class="dashboard-stat">
+      <span>Sources</span>
+      <strong>{length(@sources)} {if length(@sources) == 1, do: "source", else: "sources"}</strong>
+      <p>{enabled_sources} enabled, {length(@sources) - enabled_sources} disabled</p>
+    </section>
+    <section class="dashboard-stat">
+      <span>Destinations</span>
+      <strong>
+        {length(destinations)} {if length(destinations) == 1,
+          do: "destination",
+          else: "destinations"}
+      </strong>
+      <p>
+        {enabled_destinations} enabled, {length(destinations) - enabled_destinations} disabled
+      </p>
+    </section>
+  </div>
+
+  <section class="dashboard-section" aria-labelledby="sources-title">
+    <div class="dashboard-section-heading">
+      <div>
+        <p class="dashboard-eyebrow">CONFIGURATION</p>
+        <h2 id="sources-title">Your sources</h2>
+      </div>
+      <.link href={~p"/sources"} class="dashboard-action">Manage sources &rarr;</.link>
+    </div>
+
+    <div :if={@sources == []} class="dashboard-empty">
+      <h3>No sources configured</h3>
+      <p>Connect a forge, then add a source and its first destination to start mirroring.</p>
+      <.link href={~p"/connections"}>Manage connections &rarr;</.link>
+    </div>
+
+    <div :if={@sources != []} class="dashboard-list">
+      <article :for={source <- @sources} id={"source-#{source.id}"} class="dashboard-row">
+        <div class="dashboard-row-main">
+          <.link href={~p"/sources/#{source}"} class="dashboard-repo">{source.repo}</.link>
+          <span class="dashboard-forge">{source.connection.base_url}</span>
+        </div>
+        <div class="dashboard-row-meta">
+          <span class="dashboard-count">
+            {length(source.destinations)} {if length(source.destinations) == 1,
+              do: "destination",
+              else: "destinations"}
+          </span>
+          <span class={["dashboard-badge", (source.enabled && "is-enabled") || "is-disabled"]}>
+            {if source.enabled, do: "Enabled", else: "Disabled"}
+          </span>
+          <% latest = Map.get(@latest_runs, source.id) %>
+          <span :if={latest} class={["dashboard-badge", "is-#{latest.status}"]}>
+            {latest.status |> Atom.to_string() |> String.capitalize()}
+          </span>
+          <span :if={!latest} class="dashboard-badge is-idle">Never run</span>
+          <time :if={latest} datetime={DateTime.to_iso8601(latest.started_at)}>
+            {Calendar.strftime(latest.started_at, "%d %b %Y, %H:%M UTC")}
+          </time>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section id="recent-runs" class="dashboard-section" aria-labelledby="recent-title">
+    <div class="dashboard-section-heading">
+      <div>
+        <p class="dashboard-eyebrow">ACTIVITY</p>
+        <h2 id="recent-title">Recent runs</h2>
+      </div>
+      <span class="dashboard-limit">Last 10 across all sources</span>
+    </div>
+
+    <div :if={@recent_runs == []} class="dashboard-empty">
+      <h3>No runs yet</h3>
+      <p>Sync activity will appear here after a source runs for the first time.</p>
+    </div>
+
+    <div :if={@recent_runs != []} class="dashboard-list">
+      <article :for={run <- @recent_runs} id={"recent-run-#{run.id}"} class="dashboard-row">
+        <div class="dashboard-row-main">
+          <.link href={~p"/sources/#{run.source}"} class="dashboard-repo">{run.source.repo}</.link>
+          <span class="dashboard-forge">{run.source.connection.base_url}</span>
+        </div>
+        <div class="dashboard-row-meta">
+          <span class={["dashboard-badge", "is-#{run.status}"]}>
+            {run.status |> Atom.to_string() |> String.capitalize()}
+          </span>
+          <time datetime={DateTime.to_iso8601(run.started_at)}>
+            Started {Calendar.strftime(run.started_at, "%d %b %Y, %H:%M UTC")}
+          </time>
+          <time :if={run.finished_at} datetime={DateTime.to_iso8601(run.finished_at)}>
+            Finished {Calendar.strftime(run.finished_at, "%d %b %Y, %H:%M UTC")}
+          </time>
+        </div>
+      </article>
+    </div>
+  </section>
 </Layouts.app>

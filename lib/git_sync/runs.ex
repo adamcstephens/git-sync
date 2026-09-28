@@ -25,6 +25,35 @@ defmodule GitSync.Runs do
     |> Repo.preload(targets: [destination: :connection])
   end
 
+  def latest_by_source do
+    ranked =
+      from r in Run,
+        select: %{
+          id: r.id,
+          rank:
+            row_number()
+            |> over(partition_by: r.source_id, order_by: [desc: r.started_at, desc: r.id])
+        }
+
+    from(r in Run,
+      join: latest in subquery(ranked),
+      on: latest.id == r.id and latest.rank == 1,
+      select: struct(r, [:source_id, :status, :started_at])
+    )
+    |> Repo.all()
+    |> Map.new(&{&1.source_id, &1})
+  end
+
+  def recent(limit \\ 10) do
+    from(r in Run,
+      order_by: [desc: r.started_at, desc: r.id],
+      limit: ^limit,
+      select: struct(r, [:id, :source_id, :status, :started_at, :finished_at])
+    )
+    |> Repo.all()
+    |> Repo.preload(source: :connection)
+  end
+
   def get(id), do: Run |> Repo.get(id) |> Repo.preload(targets: [destination: :connection])
 
   @doc """
