@@ -58,7 +58,6 @@ defmodule GitSyncWeb.DestinationControllerTest do
 
       on_exit(fn -> Sync.stop_runner(source.id) end)
       Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
-      assert_receive {:synced, _}
 
       post(conn, ~p"/sources/#{source}/destinations",
         destination: %{connection_id: github.id, repo: "adam/second-mirror"}

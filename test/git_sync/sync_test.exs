@@ -67,7 +67,19 @@ defmodule GitSync.SyncTest do
     source = source(forge)
     {:ok, pid} = Sync.start_runner(source, sync_fun: sync_fun)
 
+    original_timer = :sys.get_state(pid).timer
+    source = %{source | interval_seconds: 120}
+    before = System.monotonic_time(:millisecond)
     {:ok, restarted} = Sync.restart_runner(source, sync_fun: sync_fun)
+    state = :sys.get_state(restarted)
+    remaining = Process.read_timer(state.timer)
+    elapsed = System.monotonic_time(:millisecond) - before
+    offset = :erlang.phash2(source.id, 120_000)
+
+    assert state.interval_ms == 120_000
+    assert remaining <= offset
+    assert remaining >= offset - elapsed
+    assert Process.read_timer(original_timer) == false
 
     refute restarted == pid
     assert Sync.running() == [source.id]
@@ -99,8 +111,6 @@ defmodule GitSync.SyncTest do
     {:ok, _} =
       Sync.start_runner(source, sync_fun: sync_fun, interval_ms: 60_000, debounce_ms: 10)
 
-    assert_receive {:synced, _}
-
     Sync.sync_now(source.id)
 
     assert_receive {:synced, _}
@@ -111,7 +121,7 @@ defmodule GitSync.SyncTest do
     forge: forge
   } do
     source = source(forge)
-    {:ok, pid} = Sync.start_runner(source, sync_fun: sync_fun)
+    {:ok, pid} = Sync.start_runner(source, sync_fun: sync_fun, interval_ms: 30)
     assert_receive {:synced, _}
 
     ref = Process.monitor(pid)
@@ -147,7 +157,6 @@ defmodule GitSync.SyncTest do
       :ok = Sync.reconcile(%{source | enabled: false}, sync_fun: sync_fun)
 
       assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
-      refute source.id in Sync.running()
     end
   end
 

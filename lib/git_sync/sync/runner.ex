@@ -1,9 +1,10 @@
 defmodule GitSync.Sync.Runner do
   @moduledoc """
-  Drives one source on its own timer. A tick mirrors it onto every
-  destination; a `sync_now`
-  from a webhook or the UI pulls the next tick forward, and a burst of them
-  coalesces into a single sync.
+  Drives one source on its own timer. The first tick uses a stable source-ID
+  offset within its interval, including after a restart or interval edit.
+  Subsequent ticks wait the full interval after each sync completes.
+  A `sync_now` from a webhook or the UI pulls the next tick forward, and a
+  burst of requests coalesces into a single sync.
   """
 
   use GenServer, restart: :permanent
@@ -38,7 +39,7 @@ defmodule GitSync.Sync.Runner do
       timer: nil
     }
 
-    {:ok, schedule(state, 0)}
+    {:ok, schedule(state, :erlang.phash2(source.id, state.interval_ms))}
   end
 
   @impl GenServer

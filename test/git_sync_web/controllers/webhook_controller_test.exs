@@ -35,7 +35,6 @@ defmodule GitSyncWeb.WebhookControllerTest do
 
     on_exit(fn -> Sync.stop_runner(source_id) end)
     Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
-    assert_receive {:synced, _}
 
     conn =
       conn
