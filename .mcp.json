@@ -12,6 +12,10 @@
         "git-sync-dev@localhost.localdomain"
       ],
       "env": {}
+    },
+    "doop": {
+      "type": "http",
+      "url": "https://doop.junco.dev/mcp"
     }
   }
 }
