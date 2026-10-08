@@ -97,23 +97,69 @@ defmodule GitSyncWeb.SourceHTML do
 
   def runs(assigns) do
     ~H"""
-    <section id="runs">
-      <p :if={@runs == []}>No runs yet.</p>
+    <section id="runs" class="gs-run-list">
+      <p :if={@runs == []} class="gs-panel gs-muted">No runs yet.</p>
 
-      <article :for={run <- @runs} id={"run-#{run.id}"} class="run">
-        <h3 data-status={run.status}>{run.status}</h3>
-        <p>
-          Started {run.started_at}<span :if={run.finished_at}>, finished {run.finished_at}</span>
-        </p>
-        <pre :if={run.log}>{run.log}</pre>
-
-        <article :for={target <- run.targets} id={"run-target-#{target.id}"} class="run-target">
-          <h4 data-status={target.status}>
-            {target.destination.repo} on {target.destination.connection.base_url}: {target.status}
-          </h4>
-          <p :if={target.refs_pushed != []}>Pushed {Enum.join(target.refs_pushed, ", ")}</p>
-          <pre :if={target.log}>{target.log}</pre>
-        </article>
+      <article :for={run <- @runs} id={"run-#{run.id}"} class="run gs-source-card">
+        <div class="gs-run-head">
+          <h3 data-status={run.status}>
+            <span class={[
+              "gs-badge",
+              case run.status do
+                :success -> "is-success"
+                :failure -> "is-failed"
+                :running -> "is-running"
+              end
+            ]}>
+              {run.status}
+            </span>
+            <span class="gs-muted gs-mono">Run #{run.id}</span>
+          </h3>
+          <p class="gs-muted gs-mono">
+            Started <time datetime={DateTime.to_iso8601(run.started_at)}>{run.started_at}</time>
+            <span :if={run.finished_at}>
+              · finished
+              <time datetime={DateTime.to_iso8601(run.finished_at)}>{run.finished_at}</time>
+            </span>
+          </p>
+        </div>
+        <div class="gs-run-body">
+          <div :if={run.log}>
+            <h4 class="gs-eyebrow">Source log</h4>
+            <pre class="gs-log">{run.log}</pre>
+          </div>
+          <h4 class="gs-eyebrow">Destination results</h4>
+          <p :if={run.targets == []} class="gs-muted">No destination results recorded.</p>
+          <article
+            :for={target <- run.targets}
+            id={"run-target-#{target.id}"}
+            class="run-target gs-run-target"
+          >
+            <div class="gs-run-head">
+              <h4 class="gs-mono" data-status={target.status}>
+                {target.destination.repo}
+                <span class="gs-muted">on {target.destination.connection.base_url}</span>
+              </h4>
+              <span
+                data-status={target.status}
+                class={[
+                  "gs-badge",
+                  if(target.status == :success, do: "is-success", else: "is-failed")
+                ]}
+              >
+                {target.status}
+              </span>
+            </div>
+            <p :if={target.refs_pushed == []} class="gs-muted">No refs pushed.</p>
+            <p :if={target.refs_pushed != []} class="gs-ref-list gs-mono">
+              Pushed {Enum.join(target.refs_pushed, ", ")}
+            </p>
+            <div :if={target.log}>
+              <h6 class="gs-eyebrow">Destination log</h6>
+              <pre class="gs-log">{target.log}</pre>
+            </div>
+          </article>
+        </div>
       </article>
     </section>
     """

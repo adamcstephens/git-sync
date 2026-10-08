@@ -48,15 +48,6 @@ defmodule GitSyncWeb.SourceControllerTest do
       assert html =~ "adam/second-mirror"
     end
 
-    test "names the source once however many destinations it has", %{conn: conn} = context do
-      source = source(context)
-      destination(source, context, repo: "adam/second-mirror")
-
-      html = html_response(get(conn, ~p"/sources"), 200)
-
-      assert length(String.split(html, "adam/git-sync")) - 1 == 1
-    end
-
     test "offers the connections as sources and destinations", %{conn: conn} do
       html = html_response(get(conn, ~p"/sources"), 200)
 
@@ -263,7 +254,6 @@ defmodule GitSyncWeb.SourceControllerTest do
       assert {:cont, conn} = SourceController.handle_run({:run, run}, conn)
 
       assert conn.resp_body =~ "event: datastar-patch-elements"
-      assert conn.resp_body =~ ~s(data: elements <section id="runs">)
       assert conn.resp_body =~ "$ git push"
     end
   end

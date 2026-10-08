@@ -15,7 +15,17 @@ defmodule GitSyncWeb.ConnectionHTML do
 
   def health(assigns) do
     ~H"""
-    <span id={@id} class="health" data-health={state(@health)}>
+    <span
+      id={@id}
+      class={[
+        "health gs-badge",
+        @health == :ok && "is-success",
+        match?({:error, _}, @health) && "is-failed",
+        @health == :disconnected && "is-disabled",
+        is_nil(@health) && "is-idle"
+      ]}
+      data-health={state(@health)}
+    >
       <%= case @health do %>
         <% :ok -> %>
           Healthy

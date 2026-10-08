@@ -19,6 +19,12 @@ defmodule GitSync.Forgejo.ProviderTest do
   end
 
   describe "start_configured/0" do
+    setup do
+      :ok = Provider.stop()
+      on_exit(&Provider.stop/0)
+      :ok
+    end
+
     test "leaves the worker down for an instance that cannot be an issuer" do
       Repo.insert!(%Connection{
         kind: :forgejo,

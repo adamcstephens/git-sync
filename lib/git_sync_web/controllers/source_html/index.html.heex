@@ -1,55 +1,123 @@
-<Layouts.app flash={@flash} current_operator={@current_operator}>
-  <.header>
-    Sources
-    <:subtitle>Repositories mirrored onto their destinations.</:subtitle>
-  </.header>
+<Layouts.app flash={@flash} current_operator={@current_operator} active_page={:sources}>
+  <header class="gs-page-head">
+    <div>
+      <p class="gs-eyebrow">Configuration / Sources</p>
+      <h1 class="gs-title">Sources</h1>
+      <p class="gs-subtitle">Repositories mirrored onto their destinations.</p>
+    </div>
+    <.link href="#source-form" class="gs-button">Add a source</.link>
+  </header>
 
-  <p :if={@sources == []}>Nothing is being mirrored yet.</p>
-
-  <section :for={source <- @sources} id={"source-#{source.id}"} class="source">
-    <h3>
-      <.link href={~p"/sources/#{source}"}>{source.repo}</.link> on {source.connection.base_url}
-    </h3>
-    <p>
-      Every {source.interval_seconds}s, {(source.enabled && "on") || "off"}.
-    </p>
-    <ul>
-      <li :for={destination <- source.destinations}>
-        {destination.repo} on {destination.connection.base_url}
-        <span :if={!destination.enabled}>
-          (off)
-        </span>
-      </li>
-    </ul>
+  <section class="gs-section" aria-labelledby="sources-heading">
+    <div class="gs-section-head">
+      <div>
+        <p class="gs-eyebrow">Mirror directory</p>
+        <h2 id="sources-heading">Configured sources</h2>
+      </div>
+      <span class="gs-muted gs-mono">{length(@sources)} configured</span>
+    </div>
+    <p :if={@sources == []} class="gs-panel gs-muted">Nothing is being mirrored yet.</p>
+    <div class="gs-source-list">
+      <section :for={source <- @sources} id={"source-#{source.id}"} class="source gs-source-card">
+        <div class="gs-source-top">
+          <div>
+            <h3 class="gs-mono">
+              <.link href={~p"/sources/#{source}"}>{source.repo}</.link>
+            </h3>
+            <p class="gs-muted gs-mono">{source.connection.base_url}</p>
+            <div class="gs-actions">
+              <span class={["gs-badge", if(source.enabled, do: "is-success", else: "is-disabled")]}>
+                {if(source.enabled, do: "Enabled", else: "Disabled")}
+              </span>
+              <span class="gs-muted gs-mono">Every {source.interval_seconds}s</span>
+            </div>
+          </div>
+          <.link
+            href={~p"/sources/#{source}"}
+            class="gs-button-secondary"
+            aria-label={"Manage source #{source.repo}"}
+          >
+            Manage source
+          </.link>
+        </div>
+        <div class="gs-source-destinations">
+          <p class="gs-eyebrow">Destinations / {length(source.destinations)}</p>
+          <p :if={source.destinations == []} class="gs-muted">No destinations configured.</p>
+          <ul>
+            <li :for={destination <- source.destinations} class="gs-actions">
+              <span class="gs-mono">{destination.repo}</span>
+              <span class="gs-muted gs-mono">on {destination.connection.base_url}</span>
+              <span class={[
+                "gs-badge",
+                if(destination.enabled, do: "is-success", else: "is-disabled")
+              ]}>
+                {if(destination.enabled, do: "Enabled", else: "Disabled")}
+              </span>
+            </li>
+          </ul>
+        </div>
+      </section>
+    </div>
   </section>
 
-  <.header>Add a source</.header>
-
-  <.form for={@form} id="source-form" action={~p"/sources"}>
-    <.forge_field
-      field={@form[:connection_id]}
-      label="Source forge"
-      options={@connection_options}
-    />
-    <.repo_field
-      id="source-repo-field"
-      field={@form[:repo]}
-      label="Source repository"
-      repos={@source_repos}
-    />
-    <.forge_field
-      field={@destination_form[:connection_id]}
-      label="Destination forge"
-      options={@connection_options}
-    />
-    <.repo_field
-      id="destination-repo-field"
-      field={@destination_form[:repo]}
-      label="Destination repository"
-      repos={@destination_repos}
-    />
-    <.input field={@form[:interval_seconds]} type="number" label="Interval in seconds" />
-
-    <.button id="add-source" type="submit">Add source</.button>
-  </.form>
+  <section class="gs-section" aria-labelledby="add-source-heading">
+    <div class="gs-section-head">
+      <div>
+        <p class="gs-eyebrow">Configuration</p>
+        <h2 id="add-source-heading">Add a source</h2>
+      </div>
+    </div>
+    <.form for={@form} id="source-form" action={~p"/sources"} class="gs-panel">
+      <p class="gs-muted">Choose a source repository and its first destination.</p>
+      <fieldset class="gs-section">
+        <legend class="gs-eyebrow">01 / Source repository</legend>
+        <div class="gs-form-grid">
+          <div class="gs-field">
+            <.forge_field
+              field={@form[:connection_id]}
+              label="Source forge"
+              options={@connection_options}
+            />
+          </div>
+          <div class="gs-field">
+            <.repo_field
+              id="source-repo-field"
+              field={@form[:repo]}
+              label="Source repository"
+              repos={@source_repos}
+            />
+          </div>
+        </div>
+      </fieldset>
+      <fieldset class="gs-section">
+        <legend class="gs-eyebrow">02 / First destination</legend>
+        <div class="gs-form-grid">
+          <div class="gs-field">
+            <.forge_field
+              field={@destination_form[:connection_id]}
+              label="Destination forge"
+              options={@connection_options}
+            />
+          </div>
+          <div class="gs-field">
+            <.repo_field
+              id="destination-repo-field"
+              field={@destination_form[:repo]}
+              label="Destination repository"
+              repos={@destination_repos}
+            />
+          </div>
+        </div>
+      </fieldset>
+      <div class="gs-form-grid">
+        <div class="gs-field">
+          <.input field={@form[:interval_seconds]} type="number" label="Interval in seconds" />
+        </div>
+      </div>
+      <div class="gs-actions">
+        <.button id="add-source" type="submit" class="gs-button">Add source</.button>
+        <p class="gs-muted">You can add more destinations after creating the source.</p>
+      </div>
+    </.form>
+  </section>
 </Layouts.app>

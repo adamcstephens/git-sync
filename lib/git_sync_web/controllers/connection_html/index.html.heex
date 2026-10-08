@@ -1,48 +1,85 @@
-<Layouts.app flash={@flash} current_operator={@current_operator}>
-  <.header>
-    Connections
-    <:subtitle>Forges git-sync can read from and write to.</:subtitle>
-  </.header>
+<Layouts.app flash={@flash} current_operator={@current_operator} active_page={:connections}>
+  <header class="gs-page-head">
+    <p class="gs-eyebrow">Forge access / configuration</p>
+    <h1 class="gs-title">Connections</h1>
+    <p class="gs-subtitle">Forges git-sync can read from and write to.</p>
+  </header>
 
-  <section class="connection" id="forgejo">
-    <.header>Forgejo</.header>
+  <div class="gs-section-head">
+    <h2>Access points</h2>
+    <p class="gs-muted">Connection health shown per provider</p>
+  </div>
 
-    <.list>
-      <:item title="Instance">{@connection.base_url}</:item>
-      <:item title="Operator">{@connection.operator}</:item>
-      <:item title="Health"><.health id="forgejo-health" health={@forgejo_health} /></:item>
-    </.list>
+  <section class="connection gs-panel gs-section" id="forgejo" aria-labelledby="forgejo-title">
+    <div class="gs-section-head">
+      <div>
+        <h3 id="forgejo-title">Forgejo</h3>
+        <p class="gs-muted">Your primary instance and operator account.</p>
+      </div>
+      <.health id="forgejo-health" health={@forgejo_health} />
+    </div>
+    <dl class="gs-form-grid">
+      <div class="gs-field min-w-0">
+        <dt class="gs-eyebrow">Instance</dt>
+        <dd class="gs-mono break-all">{@connection.base_url}</dd>
+      </div>
+      <div class="gs-field min-w-0">
+        <dt class="gs-eyebrow">Operator</dt>
+        <dd class="gs-mono break-all">{@connection.operator}</dd>
+      </div>
+    </dl>
   </section>
 
-  <section class="connection" id="github" data-signals={"{githubForm: #{@github_form_open}}"}>
-    <.header>
-      GitHub
-      <:subtitle>
-        Register an OAuth application on GitHub with
-        <code>{GitSyncWeb.RedirectUri.github_callback(@conn)}</code>
-        as its callback URL, then connect it here.
-      </:subtitle>
-    </.header>
+  <section
+    class="connection gs-panel gs-section"
+    id="github"
+    data-signals={"{githubForm: #{@github_form_open}}"}
+    aria-labelledby="github-title"
+  >
+    <div class="gs-section-head">
+      <div>
+        <h3 id="github-title">GitHub</h3>
+        <p class="gs-muted">
+          An OAuth application grants access to list repositories and mirror them to GitHub.
+        </p>
+      </div>
+      <.health id="github-health" health={@github_health} />
+    </div>
+    <p class="gs-muted">
+      Register an OAuth application on GitHub with
+      <code class="gs-mono break-all">{GitSyncWeb.RedirectUri.github_callback(@conn)}</code>
+      as its callback URL, then connect it here.
+    </p>
 
     <%= if @github && @github.client_id do %>
-      <.list>
-        <:item title="Application">{@github.client_id}</:item>
-        <:item title="Health"><.health id="github-health" health={@github_health} /></:item>
-      </.list>
+      <dl class="gs-form-grid">
+        <div class="gs-field min-w-0">
+          <dt class="gs-eyebrow">Application</dt>
+          <dd class="gs-mono break-all">{@github.client_id}</dd>
+        </div>
+      </dl>
 
-      <div class="actions">
+      <div class="gs-actions">
         <%= if @github.token do %>
-          <.button id="disconnect-github" href={~p"/connections/github"} method="delete">
+          <.button
+            id="disconnect-github"
+            class="gs-button-danger"
+            href={~p"/connections/github"}
+            method="delete"
+          >
             Disconnect GitHub
           </.button>
         <% else %>
-          <.button id="connect-github" href={~p"/auth/github"}>Connect GitHub</.button>
+          <.button id="connect-github" class="gs-button" href={~p"/auth/github"}>Connect GitHub</.button>
         <% end %>
 
         <.button
           id="edit-github"
           type="button"
           variant="secondary"
+          class="gs-button-secondary"
+          aria-controls="github-application"
+          data-attr:aria-expanded="$githubForm ? 'true' : 'false'"
           data-on:click="$githubForm = !$githubForm"
         >
           Edit application
@@ -51,37 +88,67 @@
     <% end %>
 
     <div id="github-application" data-show="$githubForm">
-      <.form for={@github_form} id="github-form" action={~p"/connections/github"}>
+      <.form
+        for={@github_form}
+        id="github-form"
+        action={~p"/connections/github"}
+        class="gs-form-grid"
+      >
         <.input field={@github_form[:client_id]} label="Client ID" />
         <.input field={@github_form[:client_secret]} type="password" label="Client secret" />
 
-        <.button id="save-github" type="submit">Save application</.button>
+        <.button id="save-github" class="gs-button" type="submit">Save application</.button>
       </.form>
     </div>
   </section>
 
-  <section class="connection" id="pushin" data-signals={"{pushinForm: #{@pushin_form_open}}"}>
-    <.header>
-      Pushin.eu
-      <:subtitle>
-        Use a personal access token from Pushin.eu to list repositories and mirror over HTTPS.
-        Git authentication uses the username <code>git</code> automatically.
-      </:subtitle>
-    </.header>
+  <section
+    class="connection gs-panel gs-section"
+    id="pushin"
+    data-signals={"{pushinForm: #{@pushin_form_open}}"}
+    aria-labelledby="pushin-title"
+  >
+    <div class="gs-section-head">
+      <div>
+        <h3 id="pushin-title">Pushin.eu</h3>
+        <p class="gs-muted">
+          Use a personal access token from Pushin.eu to list repositories and mirror over HTTPS.
+          Git authentication uses the username <code class="gs-mono">git</code> automatically.
+        </p>
+      </div>
+      <.health id="pushin-health" health={@pushin_health} />
+    </div>
+    <dl class="gs-form-grid">
+      <div class="gs-field min-w-0">
+        <dt class="gs-eyebrow">Instance</dt>
+        <dd class="gs-mono break-all">https://pushin.eu</dd>
+      </div>
+      <div class="gs-field">
+        <dt class="gs-eyebrow">Credentials</dt>
+        <dd>
+          {if @pushin && @pushin.token,
+            do: "Personal access token configured",
+            else: "No token configured"}
+        </dd>
+      </div>
+    </dl>
 
-    <.list>
-      <:item title="Instance">https://pushin.eu</:item>
-      <:item title="Health"><.health id="pushin-health" health={@pushin_health} /></:item>
-    </.list>
-
-    <div :if={@pushin && @pushin.token} class="actions">
-      <.button id="disconnect-pushin" href={~p"/connections/pushin"} method="delete">
+    <div :if={@pushin && @pushin.token} class="gs-actions">
+      <.button
+        id="disconnect-pushin"
+        class="gs-button-danger"
+        href={~p"/connections/pushin"}
+        method="delete"
+      >
         Disconnect Pushin.eu
       </.button>
       <.button
         id="edit-pushin"
         type="button"
         variant="secondary"
+        class="gs-button-secondary"
+        aria-controls="pushin-credentials"
+        data-attr:aria-expanded="$pushinForm ? 'true' : 'false'"
         data-on:click="$pushinForm = !$pushinForm"
       >
         Replace token
@@ -89,7 +156,13 @@
     </div>
 
     <div id="pushin-credentials" data-show="$pushinForm">
-      <.form for={@pushin_form} id="pushin-form" action={~p"/connections/pushin"} method="post">
+      <.form
+        for={@pushin_form}
+        id="pushin-form"
+        action={~p"/connections/pushin"}
+        method="post"
+        class="gs-form-grid"
+      >
         <.input
           field={@pushin_form[:token]}
           id="pushin-token"
@@ -100,35 +173,54 @@
           required
         />
 
-        <.button id="save-pushin" type="submit">
+        <.button id="save-pushin" class="gs-button" type="submit">
           {if @pushin && @pushin.token, do: "Replace token", else: "Save token"}
         </.button>
       </.form>
     </div>
   </section>
 
-  <section class="connection" id="tangled" data-signals={"{tangledForm: #{@tangled_form_open}}"}>
-    <.header>
-      Tangled
-      <:subtitle>
-        Repositories are public atproto records, so git-sync lists them from the
-        account that owns them. Pushing needs a key each knot has been given.
-      </:subtitle>
-    </.header>
+  <section
+    class="connection gs-panel gs-section"
+    id="tangled"
+    data-signals={"{tangledForm: #{@tangled_form_open}}"}
+    aria-labelledby="tangled-title"
+  >
+    <div class="gs-section-head">
+      <div>
+        <h3 id="tangled-title">Tangled</h3>
+        <p class="gs-muted">
+          Repositories are public atproto records, so git-sync lists them from the
+          account that owns them. Pushing needs a key each knot has been given.
+        </p>
+      </div>
+      <.health id="tangled-health" health={@tangled_health} />
+    </div>
 
     <%= if @tangled do %>
-      <.list>
-        <:item title="Account">{@tangled.handle}</:item>
-        <:item title="DID">{@tangled.did}</:item>
-        <:item title="Appview">{@tangled.base_url}</:item>
-        <:item title="Health"><.health id="tangled-health" health={@tangled_health} /></:item>
-      </.list>
+      <dl class="gs-form-grid">
+        <div class="gs-field min-w-0">
+          <dt class="gs-eyebrow">Account</dt>
+          <dd class="gs-mono break-all">{@tangled.handle}</dd>
+        </div>
+        <div class="gs-field min-w-0">
+          <dt class="gs-eyebrow">DID</dt>
+          <dd class="gs-mono break-all">{@tangled.did}</dd>
+        </div>
+        <div class="gs-field min-w-0">
+          <dt class="gs-eyebrow">Appview</dt>
+          <dd class="gs-mono break-all">{@tangled.base_url}</dd>
+        </div>
+      </dl>
 
-      <div class="actions">
+      <div class="gs-actions">
         <.button
           id="edit-tangled"
           type="button"
           variant="secondary"
+          class="gs-button-secondary"
+          aria-controls="tangled-account"
+          data-attr:aria-expanded="$tangledForm ? 'true' : 'false'"
           data-on:click="$tangledForm = !$tangledForm"
         >
           Edit account
@@ -137,7 +229,13 @@
     <% end %>
 
     <div id="tangled-account" data-show="$tangledForm">
-      <.form for={@tangled_form} id="tangled-form" action={~p"/connections/tangled"} method="post">
+      <.form
+        for={@tangled_form}
+        id="tangled-form"
+        action={~p"/connections/tangled"}
+        method="post"
+        class="gs-form-grid"
+      >
         <.input
           field={@tangled_form[:handle]}
           label="Handle or DID"
@@ -149,33 +247,53 @@
           placeholder="https://tangled.org"
         />
 
-        <.button id="save-tangled" type="submit">Save account</.button>
+        <.button id="save-tangled" class="gs-button" type="submit">Save account</.button>
       </.form>
     </div>
 
     <%= if @tangled do %>
-      <div data-signals="{knotForm: false}">
-        <.header>
-          Knot host keys
-          <:subtitle>
-            Check these against the fingerprints each knot's operator publishes. The
-            host a knot is pushed to is worked out when it is first pinned; pin it
-            again here to correct one.
-          </:subtitle>
-        </.header>
+      <section
+        class="gs-section"
+        data-signals="{knotForm: false}"
+        aria-labelledby="knot-keys-title"
+      >
+        <div class="gs-section-head">
+          <div>
+            <p class="gs-eyebrow">Tangled / SSH access</p>
+            <h3 id="knot-keys-title">Knot host keys</h3>
+            <p class="gs-muted">
+              Check these against the fingerprints each knot's operator publishes. The
+              host a knot is pushed to is worked out when it is first pinned; pin it
+              again here to correct one.
+            </p>
+          </div>
+        </div>
 
-        <.list>
-          <:item :for={knot <- @tangled_knots} title={knot.host}>
-            <p>{knot.ssh_host}</p>
-            <p :for={fingerprint <- knot.fingerprints}>{fingerprint}</p>
-          </:item>
-        </.list>
+        <div :if={@tangled_knots == []} class="gs-muted">
+          No knot host keys pinned. Add a knot to configure SSH access.
+        </div>
+        <dl class="gs-form-grid">
+          <div :for={knot <- @tangled_knots} class="gs-field min-w-0">
+            <dt class="gs-mono break-all">{knot.host}</dt>
+            <dd>
+              <p class="gs-muted">
+                SSH host: <span class="gs-mono break-all">{knot.ssh_host}</span>
+              </p>
+              <p :for={fingerprint <- knot.fingerprints} class="gs-mono break-all">
+                {fingerprint}
+              </p>
+            </dd>
+          </div>
+        </dl>
 
-        <div class="actions">
+        <div class="gs-actions">
           <.button
             id="add-knot"
             type="button"
             variant="secondary"
+            class="gs-button-secondary"
+            aria-controls="knot-pin"
+            data-attr:aria-expanded="$knotForm ? 'true' : 'false'"
             data-on:click="$knotForm = !$knotForm"
           >
             Add a knot
@@ -189,41 +307,55 @@
             as={:knot}
             action={~p"/connections/tangled/knots"}
             id="knot-form"
+            class="gs-form-grid"
           >
             <.input field={f[:host]} type="text" label="Knot" placeholder="knot1.tangled.sh" />
             <.input field={f[:ssh_host]} type="text" label="SSH host" placeholder="tangled.org" />
-            <.button type="submit">Pin</.button>
+            <.button class="gs-button" type="submit">Pin</.button>
           </.form>
         </div>
-      </div>
+      </section>
 
-      <.header>
-        Public key
-        <:subtitle>Add this to each knot so git-sync may push to it.</:subtitle>
-      </.header>
+      <section class="gs-section" aria-labelledby="public-key-title">
+        <div class="gs-section-head">
+          <div>
+            <h3 id="public-key-title">Public key</h3>
+            <p class="gs-muted">Add this to each knot so git-sync may push to it.</p>
+          </div>
+        </div>
 
-      <pre
-        :if={@tangled.public_key}
-        id="tangled-public-key"
-        data-ref="publicKey"
-        phx-no-curly-interpolation
-      ><%= @tangled.public_key %></pre>
-
-      <div class="actions">
-        <.button
+        <pre
           :if={@tangled.public_key}
-          id="copy-tangled-public-key"
-          type="button"
-          variant="secondary"
-          data-on:click="navigator.clipboard.writeText($publicKey.textContent)"
-        >
-          Copy
-        </.button>
+          id="tangled-public-key"
+          data-ref="publicKey"
+          class="gs-mono min-w-0 whitespace-pre-wrap break-all"
+          phx-no-curly-interpolation
+        ><%= @tangled.public_key %></pre>
 
-        <.button id="generate-tangled-key" href={~p"/connections/tangled/key"} method="post">
-          {if @tangled.public_key, do: "Replace key", else: "Generate key"}
-        </.button>
-      </div>
+        <div class="gs-actions">
+          <.button
+            :if={@tangled.public_key}
+            id="copy-tangled-public-key"
+            type="button"
+            variant="secondary"
+            class="gs-button-secondary"
+            data-on:click="navigator.clipboard.writeText($publicKey.textContent)"
+          >
+            Copy
+          </.button>
+
+          <.button
+            id="generate-tangled-key"
+            class={[
+              if(@tangled.public_key, do: "gs-button-danger", else: "gs-button")
+            ]}
+            href={~p"/connections/tangled/key"}
+            method="post"
+          >
+            {if @tangled.public_key, do: "Replace key", else: "Generate key"}
+          </.button>
+        </div>
+      </section>
     <% end %>
   </section>
 </Layouts.app>

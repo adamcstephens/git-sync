@@ -1,14 +1,38 @@
-<Layouts.app flash={@flash} current_operator={@current_operator}>
-  <.header>
-    {@source.repo}
-    <:subtitle>
-      On {@source.connection.base_url}, every {@source.interval_seconds}s.
-    </:subtitle>
-    <:actions>
-      <.button href={~p"/sources/#{@source}/sync"} method="post">Sync now</.button>
+<Layouts.app flash={@flash} current_operator={@current_operator} active_page={:sources}>
+  <header class="gs-page-head">
+    <div>
+      <p class="gs-eyebrow">Source / Repository detail</p>
+      <h1 class="gs-title gs-mono">{@source.repo}</h1>
+      <p class="gs-subtitle">
+        On {@source.connection.base_url}, every {@source.interval_seconds}s.
+      </p>
+    </div>
+    <.link href={~p"/sources"} class="gs-button-secondary">All sources</.link>
+  </header>
+
+  <section class="gs-panel" aria-label="Source summary">
+    <span class={["gs-badge", if(@source.enabled, do: "is-success", else: "is-disabled")]}>
+      {if(@source.enabled, do: "Enabled", else: "Disabled")}
+    </span>
+    <dl class="gs-summary-grid">
+      <div>
+        <dt class="gs-eyebrow">Source forge</dt>
+        <dd class="gs-mono">{@source.connection.base_url}</dd>
+      </div>
+      <div>
+        <dt class="gs-eyebrow">Sync interval</dt>
+        <dd class="gs-mono">Every {@source.interval_seconds} seconds</dd>
+      </div>
+      <div>
+        <dt class="gs-eyebrow">Destinations</dt>
+        <dd class="gs-mono">{length(@source.destinations)} configured</dd>
+      </div>
+    </dl>
+    <div class="gs-actions">
+      <.button href={~p"/sources/#{@source}/sync"} method="post" class="gs-button">Sync now</.button>
       <.form for={%{}} action={~p"/sources/#{@source}"} method="put">
         <input type="hidden" name="source[enabled]" value={to_string(!@source.enabled)} />
-        <.button id="toggle-source" type="submit" variant="secondary">
+        <.button id="toggle-source" type="submit" variant="secondary" class="gs-button-secondary">
           {(@source.enabled && "Switch off") || "Switch on"}
         </.button>
       </.form>
@@ -16,61 +40,123 @@
         href={~p"/sources/#{@source}"}
         method="delete"
         variant="secondary"
+        class="gs-button-danger"
         data-confirm="Remove this source and its destinations?"
       >
         Remove
       </.button>
-    </:actions>
-  </.header>
+    </div>
+  </section>
 
-  <.header>Destinations</.header>
+  <section class="gs-section" aria-labelledby="destinations-heading">
+    <div class="gs-section-head">
+      <div>
+        <p class="gs-eyebrow">Configuration</p>
+        <h2 id="destinations-heading">Destinations</h2>
+      </div>
+      <span class="gs-muted gs-mono">{length(@source.destinations)} configured</span>
+    </div>
+    <p :if={@source.destinations == []} class="gs-panel gs-muted">No destinations configured.</p>
+    <div class="gs-table-wrap">
+      <table class="gs-table">
+        <caption class="sr-only">Destinations for {@source.repo}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Repository</th>
+            <th scope="col">Forge</th>
+            <th scope="col">State</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="destinations">
+          <tr :for={destination <- @source.destinations}>
+            <td class="gs-mono">{destination.repo}</td>
+            <td class="gs-muted gs-mono">{destination.connection.base_url}</td>
+            <td>
+              <span class={[
+                "gs-badge",
+                if(destination.enabled, do: "is-success", else: "is-disabled")
+              ]}>
+                {if(destination.enabled, do: "Enabled", else: "Disabled")}
+              </span>
+            </td>
+            <td>
+              <div class="gs-actions">
+                <.form
+                  for={%{}}
+                  action={~p"/sources/#{@source}/destinations/#{destination}"}
+                  method="put"
+                >
+                  <input
+                    type="hidden"
+                    name="destination[enabled]"
+                    value={to_string(!destination.enabled)}
+                  />
+                  <.button
+                    id={"toggle-destination-#{destination.id}"}
+                    type="submit"
+                    variant="secondary"
+                    class="gs-button-secondary"
+                    aria-label={"#{if(destination.enabled, do: "Switch off", else: "Switch on")} destination #{destination.repo} on #{destination.connection.base_url}"}
+                  >
+                    {(destination.enabled && "Switch off") || "Switch on"}
+                  </.button>
+                </.form>
+                <.link
+                  href={~p"/sources/#{@source}/destinations/#{destination}"}
+                  method="delete"
+                  class="gs-button-danger"
+                  data-confirm="Remove this destination?"
+                  aria-label={"Remove destination #{destination.repo} on #{destination.connection.base_url}"}
+                >
+                  Remove
+                </.link>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <.form
+      for={@form}
+      id="destination-form"
+      action={~p"/sources/#{@source}/destinations"}
+      class="gs-panel gs-section"
+    >
+      <h3>Add a destination</h3>
+      <div class="gs-form-grid">
+        <div class="gs-field">
+          <.forge_field
+            field={@form[:connection_id]}
+            label="Destination forge"
+            options={@connection_options}
+          />
+        </div>
+        <div class="gs-field">
+          <.repo_field
+            id="destination-repo-field"
+            field={@form[:repo]}
+            label="Destination repository"
+            repos={@destination_repos}
+          />
+        </div>
+      </div>
+      <div class="gs-actions">
+        <.button id="add-destination" type="submit" class="gs-button">Add destination</.button>
+      </div>
+    </.form>
+  </section>
 
-  <.table id="destinations" rows={@source.destinations}>
-    <:col :let={destination} label="Repository">{destination.repo}</:col>
-    <:col :let={destination} label="Forge">{destination.connection.base_url}</:col>
-    <:col :let={destination} label="State">{(destination.enabled && "on") || "off"}</:col>
-    <:action :let={destination}>
-      <.form
-        for={%{}}
-        action={~p"/sources/#{@source}/destinations/#{destination}"}
-        method="put"
-      >
-        <input type="hidden" name="destination[enabled]" value={to_string(!destination.enabled)} />
-        <.button id={"toggle-destination-#{destination.id}"} type="submit" variant="secondary">
-          {(destination.enabled && "Switch off") || "Switch on"}
-        </.button>
-      </.form>
-    </:action>
-    <:action :let={destination}>
-      <.link
-        href={~p"/sources/#{@source}/destinations/#{destination}"}
-        method="delete"
-        data-confirm="Remove this destination?"
-      >
-        Remove
-      </.link>
-    </:action>
-  </.table>
-
-  <.form for={@form} id="destination-form" action={~p"/sources/#{@source}/destinations"}>
-    <.forge_field
-      field={@form[:connection_id]}
-      label="Destination forge"
-      options={@connection_options}
-    />
-    <.repo_field
-      id="destination-repo-field"
-      field={@form[:repo]}
-      label="Destination repository"
-      repos={@destination_repos}
-    />
-
-    <.button id="add-destination" type="submit">Add destination</.button>
-  </.form>
-
-  <.header>Runs</.header>
-
-  <div data-init={"@get('#{~p"/sources/#{@source}/events"}')"}>
-    <.runs runs={@runs} />
-  </div>
+  <section class="gs-section" aria-labelledby="runs-heading">
+    <div class="gs-section-head">
+      <div>
+        <p class="gs-eyebrow">Activity</p>
+        <h2 id="runs-heading">Runs</h2>
+      </div>
+      <span class="gs-muted gs-mono">Updates live</span>
+    </div>
+    <div data-init={"@get('#{~p"/sources/#{@source}/events"}')"}>
+      <.runs runs={@runs} />
+    </div>
+  </section>
 </Layouts.app>

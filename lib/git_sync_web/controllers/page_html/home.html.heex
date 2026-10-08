@@ -1,7 +1,16 @@
-<Layouts.app flash={@flash} current_operator={@current_operator}>
+<Layouts.app flash={@flash} current_operator={@current_operator} active_page={:overview}>
   <% destinations = Enum.flat_map(@sources, & &1.destinations) %>
   <% enabled_sources = Enum.count(@sources, & &1.enabled) %>
   <% enabled_destinations = Enum.count(destinations, & &1.enabled) %>
+
+  <header class="gs-page-head">
+    <div>
+      <p class="gs-eyebrow">Mirror operations</p>
+      <h1 class="gs-title">Overview</h1>
+      <p class="gs-subtitle">Your sources and recent sync activity, all in one place.</p>
+    </div>
+    <.link href={~p"/sources"} class="gs-button">Manage sources &rarr;</.link>
+  </header>
 
   <div class="dashboard-stats" aria-label="Mirror configuration totals">
     <section class="dashboard-stat">
@@ -49,14 +58,14 @@
               do: "destination",
               else: "destinations"}
           </span>
-          <span class={["dashboard-badge", (source.enabled && "is-enabled") || "is-disabled"]}>
+          <span class={["gs-badge", (source.enabled && "is-success") || "is-disabled"]}>
             {if source.enabled, do: "Enabled", else: "Disabled"}
           </span>
           <% latest = Map.get(@latest_runs, source.id) %>
-          <span :if={latest} class={["dashboard-badge", "is-#{latest.status}"]}>
+          <span :if={latest} class={["gs-badge", "is-#{latest.status}"]}>
             {latest.status |> Atom.to_string() |> String.capitalize()}
           </span>
-          <span :if={!latest} class="dashboard-badge is-idle">Never run</span>
+          <span :if={!latest} class="gs-badge is-idle">Never run</span>
           <time :if={latest} datetime={DateTime.to_iso8601(latest.started_at)}>
             {Calendar.strftime(latest.started_at, "%d %b %Y, %H:%M UTC")}
           </time>
@@ -86,7 +95,7 @@
           <span class="dashboard-forge">{run.source.connection.base_url}</span>
         </div>
         <div class="dashboard-row-meta">
-          <span class={["dashboard-badge", "is-#{run.status}"]}>
+          <span class={["gs-badge", "is-#{run.status}"]}>
             {run.status |> Atom.to_string() |> String.capitalize()}
           </span>
           <time datetime={DateTime.to_iso8601(run.started_at)}>
