@@ -21,12 +21,14 @@ Connections manages forge credentials, connection health, Tangled knot host keys
 and the complete public SSH key. Setup and sign-in remain available before
 authentication.
 
-The interface uses local system fonts and explicit status labels. Its paper-and-ink
-light palette switches automatically to a dark ink-room palette when your system
-prefers dark mode, including native form controls. There is no separate theme
-toggle or saved preference. Navigation, forms, and controls support keyboard focus;
-long repository names, logs, and keys wrap, and destination tables scroll on small
-screens.
+The interface uses local system fonts and explicit status labels. Its lavender-paper
+and purple-ink light palette switches automatically to the matching dark purple
+palette when your system prefers dark mode, including native form controls. Green
+is reserved for healthy, enabled, and success indicators; dark success badges use
+purple backgrounds. Primary actions and links are purple in both modes.
+There is no separate theme toggle or saved preference. Navigation, forms, and
+controls support keyboard focus; long repository names, logs, and keys wrap, and
+destination tables scroll on small screens.
 
 ## Credential encryption upgrade
 
