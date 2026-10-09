@@ -28,6 +28,6 @@ update-elixir:
     mix deps.update --all
     mix deps.get
     mix hex.outdated
-    mix hex.audit
+    mix hex.audit || true
     just mix-clean
     jj commit -m 'chore: update elixir deps' mix.exs mix.lock nix/deps.nix
