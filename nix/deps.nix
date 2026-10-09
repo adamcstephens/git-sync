@@ -186,6 +186,27 @@ let
     with self;
     {
 
+      argon2_elixir =
+        let
+          version = "4.1.3";
+          drv = buildMix {
+            inherit version;
+            name = "argon2_elixir";
+
+            src = fetchHex {
+              inherit version;
+              pkg = "argon2_elixir";
+              sha256 = "7c295b8d8e0eaf6f43641698f962526cdf87c6feb7d14bd21e599271b510608c";
+            };
+
+            beamDeps = [
+              comeonin
+              elixir_make
+            ];
+          };
+        in
+        drv.override (workarounds.elixirMake { } drv);
+
       bandit =
         let
           version = "1.12.5";
@@ -267,6 +288,22 @@ let
               cloak
               ecto
             ];
+          };
+        in
+        drv;
+
+      comeonin =
+        let
+          version = "5.5.1";
+          drv = buildMix {
+            inherit version;
+            name = "comeonin";
+
+            src = fetchHex {
+              inherit version;
+              pkg = "comeonin";
+              sha256 = "65aac8f19938145377cee73973f192c5645873dcf550a8a6b18187d17c13ccdb";
+            };
           };
         in
         drv;
@@ -391,6 +428,22 @@ let
         in
         drv;
 
+      envar =
+        let
+          version = "1.1.0";
+          drv = buildMix {
+            inherit version;
+            name = "envar";
+
+            src = fetchHex {
+              inherit version;
+              pkg = "envar";
+              sha256 = "97028ab4a040a5c19e613fdf46a41cf51c6e848d99077e525b338e21d2993320";
+            };
+          };
+        in
+        drv;
+
       esbuild =
         let
           version = "0.10.0";
@@ -433,6 +486,29 @@ let
         in
         drv.override (workarounds.elixirMake { } drv);
 
+      fields =
+        let
+          version = "2.12.0";
+          drv = buildMix {
+            inherit version;
+            name = "fields";
+
+            src = fetchHex {
+              inherit version;
+              pkg = "fields";
+              sha256 = "6174a777fa37207470f925488e44ccc1a4974da672e6bfcc05441c8b83c2d844";
+            };
+
+            beamDeps = [
+              argon2_elixir
+              ecto
+              envar
+              html_sanitize_ex
+            ];
+          };
+        in
+        drv;
+
       finch =
         let
           version = "0.24.0";
@@ -469,6 +545,26 @@ let
               pkg = "hpax";
               sha256 = "0b8d0f05832f55571d65ac720f79bf8994138ffbb133209dc4685eae0ad456a8";
             };
+          };
+        in
+        drv;
+
+      html_sanitize_ex =
+        let
+          version = "1.5.5";
+          drv = buildMix {
+            inherit version;
+            name = "html_sanitize_ex";
+
+            src = fetchHex {
+              inherit version;
+              pkg = "html_sanitize_ex";
+              sha256 = "d5538890ad8571fffc89e43433eb81046655009bf920d19f237ff080e1552411";
+            };
+
+            beamDeps = [
+              mochiweb
+            ];
           };
         in
         drv;
@@ -541,6 +637,22 @@ let
             beamDeps = [
               hpax
             ];
+          };
+        in
+        drv;
+
+      mochiweb =
+        let
+          version = "3.5.0";
+          drv = buildRebar3 {
+            inherit version;
+            name = "mochiweb";
+
+            src = fetchHex {
+              inherit version;
+              pkg = "mochiweb";
+              sha256 = "c35df2787fffd009ab2f2470768ad1cdc993eab2c68cd7ddf75171c1462265d6";
+            };
           };
         in
         drv;

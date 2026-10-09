@@ -38,6 +38,8 @@ config :git_sync, GitSync.Vault,
        tag: "AES.GCM.V1", key: Base.decode64!("aqk/Lo+yqt9cBQo0Pi4TPYgfP/8hC9axhT3DMJecN5I=")}
   ]
 
+config :fields, encryption_keys: "aqk/Lo+yqt9cBQo0Pi4TPYgfP/8hC9axhT3DMJecN5I="
+
 # Outbound HTTP is stubbed per test process; see `Req.Test`.
 config :git_sync, :req_options, plug: {Req.Test, GitSync.Http}, retry: false
 

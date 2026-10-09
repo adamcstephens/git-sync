@@ -59,6 +59,7 @@ defmodule GitSync.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:bandit, "~> 1.5"},
       {:cloak_ecto, "~> 1.3.0"},
+      {:fields, "~> 2.12"},
       {:oidcc, "~> 3.8"},
       {:oidcc_plug, "~> 0.5.1"},
       {:req, "~> 0.8.0-rc.0"}

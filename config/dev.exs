@@ -79,3 +79,5 @@ config :git_sync, GitSync.Vault,
       {Cloak.Ciphers.AES.GCM,
        tag: "AES.GCM.V1", key: Base.decode64!("dVf0aGNPJiqYMT12JyzbtgqEkyHev079E3dNIwCn0UU=")}
   ]
+
+config :fields, encryption_keys: "dVf0aGNPJiqYMT12JyzbtgqEkyHev079E3dNIwCn0UU="

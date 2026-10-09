@@ -27,3 +27,14 @@ prefers dark mode, including native form controls. There is no separate theme
 toggle or saved preference. Navigation, forms, and controls support keyboard focus;
 long repository names, logs, and keys wrap, and destination tables scroll on small
 screens.
+
+## Credential encryption upgrade
+
+The preparation release adds Fields without changing credential storage. Before
+deploying it, add `ENCRYPTION_KEYS` to the service environment with exactly the
+existing `CLOAK_KEY` value, and retain `CLOAK_KEY`. Do not generate a replacement
+key for existing data.
+
+The cutover release will convert credentials automatically at boot, before
+workers and HTTP serving start. Stop the old service and take a consistent SQLite
+backup before deploying that release. Both commits may be deployed together.
