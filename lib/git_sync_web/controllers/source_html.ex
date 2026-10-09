@@ -100,8 +100,13 @@ defmodule GitSyncWeb.SourceHTML do
     <section id="runs" class="gs-run-list">
       <p :if={@runs == []} class="gs-panel gs-muted">No runs yet.</p>
 
-      <article :for={run <- @runs} id={"run-#{run.id}"} class="run gs-source-card">
-        <div class="gs-run-head">
+      <details
+        :for={run <- @runs}
+        id={"run-#{run.id}"}
+        class="run gs-source-card"
+        data-preserve-attr="open"
+      >
+        <summary class="gs-run-head gs-run-summary">
           <h3 data-status={run.status}>
             <span class={[
               "gs-badge",
@@ -122,7 +127,8 @@ defmodule GitSyncWeb.SourceHTML do
               <time datetime={DateTime.to_iso8601(run.finished_at)}>{run.finished_at}</time>
             </span>
           </p>
-        </div>
+          <span class="gs-run-chevron" aria-hidden="true">›</span>
+        </summary>
         <div class="gs-run-body">
           <div :if={run.log}>
             <h4 class="gs-eyebrow">Source log</h4>
@@ -160,7 +166,7 @@ defmodule GitSyncWeb.SourceHTML do
             </div>
           </article>
         </div>
-      </article>
+      </details>
     </section>
     """
   end

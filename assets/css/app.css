@@ -204,6 +204,13 @@ td .gs-actions { margin: 0; }
 .gs-run-head { align-items: center; }
 .gs-run-head h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; }
 .gs-run-head p { margin: 0; font-size: 11px; overflow-wrap: anywhere; }
+.gs-run-summary { position: relative; padding-right: 48px; cursor: pointer; list-style: none; transition: background 150ms ease; }
+.gs-run-summary::-webkit-details-marker { display: none; }
+.gs-run-summary:hover { background: var(--code-bg); }
+.gs-run-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gs-run-summary p { margin-left: auto; }
+.gs-run-chevron { position: absolute; right: 24px; top: calc(50% - 12px); color: var(--muted); font-size: 24px; line-height: 1; transition: transform 150ms ease; }
+.run[open] > .gs-run-summary .gs-run-chevron { transform: rotate(90deg); }
 .gs-run-body { padding: 20px 24px; border-top: 1px solid var(--border); }
 .gs-run-body > div + h4 { margin-top: 24px; }
 .gs-run-target { padding: 18px 0; border-top: 1px solid var(--border); }
@@ -273,6 +280,8 @@ dl.data-list dd { margin-bottom: 12px; overflow-wrap: anywhere; }
   .gs-form-grid, .gs-summary-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .gs-panel, .dashboard-empty { padding: 20px; }
   .gs-source-top, .gs-run-head { flex-direction: column; align-items: flex-start; padding: 20px; gap: 14px; }
+  .gs-run-summary { padding-right: 48px; }
+  .gs-run-summary p { margin-left: 0; }
   .gs-source-destinations, .gs-run-body { padding: 18px 20px; }
   .gs-run-target .gs-run-head { padding: 0; }
   .dashboard-row { flex-direction: column; gap: 14px; }
