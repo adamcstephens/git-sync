@@ -73,11 +73,4 @@ config :phoenix_live_view,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
 
-config :git_sync, GitSync.Vault,
-  ciphers: [
-    default:
-      {Cloak.Ciphers.AES.GCM,
-       tag: "AES.GCM.V1", key: Base.decode64!("dVf0aGNPJiqYMT12JyzbtgqEkyHev079E3dNIwCn0UU=")}
-  ]
-
 config :fields, encryption_keys: "dVf0aGNPJiqYMT12JyzbtgqEkyHev079E3dNIwCn0UU="

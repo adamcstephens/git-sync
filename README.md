@@ -30,11 +30,34 @@ screens.
 
 ## Credential encryption upgrade
 
-The preparation release adds Fields without changing credential storage. Before
-deploying it, add `ENCRYPTION_KEYS` to the service environment with exactly the
-existing `CLOAK_KEY` value, and retain `CLOAK_KEY`. Do not generate a replacement
-key for existing data.
+Two commits separate preparation from cutover; they may be deployed together.
 
-The cutover release will convert credentials automatically at boot, before
-workers and HTTP serving start. Stop the old service and take a consistent SQLite
-backup before deploying that release. Both commits may be deployed together.
+1. Stop the old service and take a consistent SQLite backup, including its WAL
+   state. Preserve the old release and encryption key with the backup.
+2. Set `ENCRYPTION_KEYS` in the service environment to exactly the existing
+   `CLOAK_KEY` value. Do not generate a new key for existing data.
+3. Deploy the preparation commit if desired. It still requires `CLOAK_KEY` and
+   continues writing Cloak credentials.
+4. Deploy the cutover commit and start the service. It no longer requires
+   `CLOAK_KEY`; remove that variable after cutover.
+
+The cutover converts `connections.token`, `refresh_token`, `ssh_key`,
+`client_secret`, and `sources.webhook_secret` automatically on application boot,
+before webhook reconciliation, sync workers, and HTTP serving start. It replaces
+the ciphertext header while preserving the encrypted payload and authenticates
+every non-null value using key index zero. Nulls remain null.
+
+Conversion runs in one SQLite migration transaction, reading batches of 100 rows.
+A wrong key, failed authentication, or unexpected format aborts startup and rolls
+back all updates. Correct the problem and restart; failed migrations are not
+recorded. Successful migrations are recorded and are not repeated on restart.
+Only one service instance may access the database during cutover.
+
+Rollback requires stopping the service and restoring the pre-upgrade backup
+together with the old release and key. Starting the old binary against converted
+data is not supported. Restoring the backup discards writes made after cutover.
+
+After migration, `ENCRYPTION_KEYS` may contain comma-separated Base64-encoded
+32-byte keys. Fields encrypts with the last key and stores its numeric index.
+Append keys to rotate; never reorder or remove keys still needed by stored data
+or retained backups. Do not combine rotation with this upgrade.

@@ -39,8 +39,8 @@ in
     secretsFile = lib.mkOption {
       type = lib.types.path;
       description = ''
-        EnvironmentFile holding `SECRET_KEY_BASE`, `CLOAK_KEY`, and `ENCRYPTION_KEYS`.
-        Set `ENCRYPTION_KEYS` to the existing `CLOAK_KEY` for the encryption upgrade.
+        EnvironmentFile holding `SECRET_KEY_BASE` and `ENCRYPTION_KEYS`.
+        For the encryption upgrade, set `ENCRYPTION_KEYS` to the old `CLOAK_KEY` value.
         Generate new secrets with
         `mix phx.gen.secret` and
         `elixir -e 'IO.puts(Base.encode64(:crypto.strong_rand_bytes(32)))'`.

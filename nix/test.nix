@@ -15,7 +15,6 @@
         address = "127.0.0.1";
         secretsFile = pkgs.writeText "git-sync.env" ''
           SECRET_KEY_BASE=${lib.strings.replicate 64 "a"}
-          CLOAK_KEY=${lib.strings.replicate 43 "b"}=
           ENCRYPTION_KEYS=${lib.strings.replicate 43 "b"}=
         '';
       };

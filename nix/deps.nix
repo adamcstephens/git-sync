@@ -251,47 +251,6 @@ let
         in
         drv.override (workarounds.elixirMake { } drv);
 
-      cloak =
-        let
-          version = "1.1.4";
-          drv = buildMix {
-            inherit version;
-            name = "cloak";
-
-            src = fetchHex {
-              inherit version;
-              pkg = "cloak";
-              sha256 = "92b20527b9aba3d939fab0dd32ce592ff86361547cfdc87d74edce6f980eb3d7";
-            };
-
-            beamDeps = [
-              jason
-            ];
-          };
-        in
-        drv;
-
-      cloak_ecto =
-        let
-          version = "1.3.0";
-          drv = buildMix {
-            inherit version;
-            name = "cloak_ecto";
-
-            src = fetchHex {
-              inherit version;
-              pkg = "cloak_ecto";
-              sha256 = "314beb0c123b8a800418ca1d51065b27ba3b15f085977e65c0f7b2adab2de1cc";
-            };
-
-            beamDeps = [
-              cloak
-              ecto
-            ];
-          };
-        in
-        drv;
-
       comeonin =
         let
           version = "5.5.1";

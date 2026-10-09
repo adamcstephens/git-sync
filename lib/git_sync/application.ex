@@ -11,10 +11,8 @@ defmodule GitSync.Application do
 
     children = [
       GitSyncWeb.Telemetry,
-      GitSync.Vault,
       GitSync.Repo,
-      {Ecto.Migrator,
-       repos: Application.fetch_env!(:git_sync, :ecto_repos), skip: skip_migrations?()},
+      {Ecto.Migrator, repos: Application.fetch_env!(:git_sync, :ecto_repos)},
       Supervisor.child_spec(
         {Task, &GitSync.Sources.reconcile_webhooks/0},
         id: GitSync.WebhookReconciler
@@ -50,10 +48,5 @@ defmodule GitSync.Application do
       GitSync.Runs.abandon_running()
       GitSync.Sync.start_enabled()
     end
-  end
-
-  defp skip_migrations?() do
-    # By default, sqlite migrations are run when using a release
-    System.get_env("RELEASE_NAME") == nil
   end
 end
