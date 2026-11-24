@@ -11,7 +11,7 @@
 
 beamPackages.mixRelease rec {
   pname = "git-sync";
-  version = "0.1.0";
+  version = lib.trim (builtins.readFile ../VERSION);
 
   env.MIX_ESBUILD_PATH = lib.getExe esbuild;
 
@@ -24,6 +24,7 @@ beamPackages.mixRelease rec {
       ../priv
       ../mix.exs
       ../mix.lock
+      ../VERSION
     ];
   };
 
